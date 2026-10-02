@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { computeGenerations, computeLayout, GEN_GAP, NODE_W } from './layout';
+import { Vector3 } from 'three';
+import { bend, computeFlatLayout, computeGenerations, computeLayout, GEN_GAP, NODE_W } from './layout';
 import { hayes, makeFamily } from './testFamily';
 import type { Person, Relationship } from './types';
 
 const f = hayes();
-const pos = computeLayout(f.people, f.relationships);
+const pos = computeFlatLayout(f.people, f.relationships);
 const at = (id: string) => pos.get(id)!;
 
 describe('computeGenerations', () => {
@@ -49,7 +50,7 @@ describe('computeLayout', () => {
       partners: [['A', 'B']],
       parents: { C: ['A', 'B'], D: ['A', 'B'], E: ['A', 'B'] },
     });
-    const p = computeLayout(fam.people, fam.relationships);
+    const p = computeFlatLayout(fam.people, fam.relationships);
     const mid = (p.get('A')!.x + p.get('B')!.x) / 2;
     const meanKids = (p.get('C')!.x + p.get('D')!.x + p.get('E')!.x) / 3;
     expect(meanKids).toBeCloseTo(mid);
@@ -58,6 +59,29 @@ describe('computeLayout', () => {
 
   it('spreads sibling branches in depth', () => {
     expect(at('Thomas').z).not.toBeCloseTo(at('George').z);
+  });
+
+  it('places an in-law’s family behind the in-law instead of off to the side', () => {
+    // Kim is Kate's mother; Kate hangs under the Hayes family.
+    expect(Math.abs(at('Kim').x - at('Kate').x)).toBeLessThan(NODE_W * 1.5);
+    expect(at('Kim').z).toBeLessThan(at('Kate').z - 1);
+    expect(Math.abs(at('Walter').x - at('Linda').x)).toBeLessThan(NODE_W * 1.5);
+  });
+
+  it('bends onto a curve while keeping partner spacing and levels', () => {
+    const bent = computeLayout(f.people, f.relationships);
+    for (const [a, b] of [['Robert', 'Eleanor'], ['Justin', 'Kate']]) {
+      expect(bent.get(a)!.distanceTo(bent.get(b)!)).toBeCloseTo(NODE_W, 1);
+      expect(bent.get(a)!.y).toBeCloseTo(bent.get(b)!.y);
+    }
+  });
+
+  it('curves a flat row toward the viewer, symmetric about the centre', () => {
+    const row = new Map([-30, 0, 30].map((x) => [`n${x}`, new Vector3(x, 0, 0)]));
+    const b = bend(row);
+    expect(b.get('n-30')!.z).toBeGreaterThan(b.get('n0')!.z + 5);
+    expect(b.get('n-30')!.z).toBeCloseTo(b.get('n30')!.z);
+    expect(b.get('n0')!.x).toBeCloseTo(0);
   });
 
   it('separates disconnected people', () => {

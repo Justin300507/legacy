@@ -64,17 +64,19 @@ export function relationshipLabel(path: Step[], ix: GraphIndex, genderOf: (id: s
   return `${term} by marriage`;
 }
 
-export type ConnectionDescription = { label: string; sentence: string; chain: string };
+/** label: what B is to A; relation: what A is to B (as used in the sentence). */
+export type ConnectionDescription = { label: string; relation: string; sentence: string; chain: string };
 
 export function describeConnection(path: Step[], ix: GraphIndex, people: Map<string, Person>): ConnectionDescription {
   const genderOf = (id: string) => people.get(id)?.gender;
   const name = (id: string) => people.get(id)?.name ?? 'Unknown';
-  if (path.length === 0) return { label: 'self', sentence: 'Same person', chain: '' };
+  if (path.length === 0) return { label: 'self', relation: 'self', sentence: 'Same person', chain: '' };
 
   const a = path[0].from;
   const b = path[path.length - 1].to;
   const label = relationshipLabel(path, ix, genderOf);
-  const sentence = `${name(a)} is ${name(b)}'s ${relationshipLabel(reversePath(path), ix, genderOf)}`;
+  const relation = relationshipLabel(reversePath(path), ix, genderOf);
+  const sentence = `${name(a)} is ${name(b)}'s ${relation}`;
 
   const parts = [name(a)];
   for (let i = 0; i < path.length; i++) {
@@ -89,5 +91,5 @@ export function describeConnection(path: Step[], ix: GraphIndex, people: Map<str
     const forms = st.kind === 'parent' ? PARENT : st.kind === 'child' ? CHILD : PARTNER;
     parts.push(`${pick(forms, genderOf(st.to))} ${name(st.to)}`);
   }
-  return { label, sentence, chain: parts.join(' → ') };
+  return { label, relation, sentence, chain: parts.join(' → ') };
 }

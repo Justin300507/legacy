@@ -1,32 +1,36 @@
-# React + TypeScript + Vite
+# Family 3D
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+A 3D family tree that runs entirely in your browser. People are glowing blue rings in 3D space, connected by animated dotted lines. Data (including photos) is stored locally in IndexedDB — no backend.
 
-Currently, two official plugins are available:
+## Run
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev        # http://localhost:5173
+npm test           # unit tests (vitest)
+npm run build      # type-check + production build into dist/
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+To try it on a phone, run `npm run dev -- --host` and open the printed network URL.
+
+## Features
+
+- **3D tree** — generations on Y, couples side by side, children under their parents' midpoint, sibling branches fanned out in depth, the whole tree gently curved toward you. In-laws' families sit behind the person who married in. Orbit / zoom / pan with mouse or touch.
+- **Find Connection** — pick two people (click nodes or search). Shortest path through parent/child/partner links, named with the common-ancestor method: *father*, *great-uncle*, *second cousin once removed*, *sister-in-law*, *step-son*, … The rest of the tree dims, the path lights up with a travelling pulse, and the camera frames it.
+- **Add relative** — select a person → *Add relative* → Parent / Partner / Child / Sibling. The camera spins round, a ghost node appears where the new person will go, the connecting line draws itself, and the form slides in beside it (bottom sheet on phones). Asks for the other parent when someone has several partners, and offers a placeholder parent for siblings of someone with no parents.
+- Side panel with details and direct relatives (click to fly there), edit, delete.
+- Search, empty state, demo family (15 people, 4 generations, remarriage, cousins), JSON export / import with photos embedded as base64.
+
+## Layout of the code
+
+```
+src/lib/            pure logic (unit tested)
+  graph.ts          index, shortest path, siblings
+  relationship.ts   relationship naming
+  layout.ts         computeLayout(people, relationships) → Map<id, Vector3>
+  addRelative.ts    what "add a sibling/child/…" creates
+  db.ts io.ts photo.ts demo.ts camera.ts
+src/store/          zustand stores (family data, UI mode), actions
+src/components/scene/  three.js scene (nodes, lines, ghost, camera rig)
+src/components/ui/     2D overlay (panels, forms, pickers)
+```

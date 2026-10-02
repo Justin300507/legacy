@@ -3,11 +3,12 @@ import { buildIndex, childrenOf, parentsOf, partnersOf, type GraphIndex } from '
 import type { Person, Relationship } from './types';
 
 export const GEN_GAP = 4;
-export const NODE_W = 2.8;
+export const NODE_W = 3.3;
 const TREE_GAP = 4;
 const ARC_RADIUS = 3;
 const ARC_SPREAD = (2 * Math.PI) / 3;
-const STUB_Z = 3;
+const STUB_Z = 3.5;
+const BEND_MIN_RADIUS = 45;
 
 /** Generation per person: children below parents, partners level. Relaxed to a fixpoint. */
 export function computeGenerations(people: Person[], rels: Relationship[]): Map<string, number> {
@@ -70,7 +71,8 @@ function orderMembers(ix: GraphIndex, ids: string[], hub: string): string[] {
   return order;
 }
 
-export function computeLayout(people: Person[], rels: Relationship[]): Map<string, Vector3> {
+/** Tidy-tree layout in a plane (before bending): generations on Y, families on X, branches fanned on Z. */
+export function computeFlatLayout(people: Person[], rels: Relationship[]): Map<string, Vector3> {
   const out = new Map<string, Vector3>();
   if (people.length === 0) return out;
   const ix = buildIndex(people, rels);
@@ -157,38 +159,64 @@ export function computeLayout(people: Person[], rels: Relationship[]): Map<strin
     });
   };
 
-  // Root clusters with children but nothing claimed (e.g. an in-law's parents) sit above their child.
-  const isStub = (c: Cluster) => c.children.length === 0 && c.members.some((id) => childrenOf(ix, id).length > 0);
-  const trees = roots.filter((r) => !isStub(r));
-  const stubs = roots.filter(isStub);
-
-  let cursor = 0;
-  for (const t of trees) {
-    measure(t);
-    place(t, cursor, 0);
-    cursor += t.width + TREE_GAP;
-  }
-
   const maxGen = Math.max(...gen.values());
   const yOf = (g: number) => (maxGen / 2 - g) * GEN_GAP;
-  const emit = (c: Cluster) => {
-    c.members.forEach((id, j) => out.set(id, new Vector3(c.x + (j - (c.members.length - 1) / 2) * NODE_W, yOf(c.gen), c.z)));
-    c.children.forEach(emit);
+  const emit = (c: Cluster, into: Map<string, Vector3>) => {
+    c.members.forEach((id, j) => into.set(id, new Vector3(c.x + (j - (c.members.length - 1) / 2) * NODE_W, yOf(c.gen), c.z)));
+    c.children.forEach((ch) => emit(ch, into));
   };
-  trees.forEach(emit);
 
-  for (const s of stubs) {
-    const kids = s.members.flatMap((id) => childrenOf(ix, id)).map((id) => out.get(id)).filter((v): v is Vector3 => !!v);
-    const cx = kids.length ? kids.reduce((a, v) => a + v.x, 0) / kids.length : cursor;
-    const cz = kids.length ? Math.min(...kids.map((v) => v.z)) - STUB_Z : 0;
-    const y = yOf(s.gen);
-    const collides = (x: number) =>
-      [...out.values()].some((v) => Math.abs(v.y - y) < 0.01 && Math.abs(v.z - cz) < 1.5 && Math.abs(v.x - x) < NODE_W * (s.members.length + 1) / 2);
-    let x = cx;
-    for (let step = 1; collides(x); step++) x = cx + (step % 2 ? 1 : -1) * Math.ceil(step / 2) * NODE_W;
-    s.x = x;
-    s.z = cz;
-    emit(s);
+  // A tree whose members have children hanging in another tree is an in-law's family:
+  // it is placed behind that child rather than off to the side.
+  const treeOf = new Map<Cluster, Cluster>();
+  const mark = (c: Cluster, root: Cluster) => {
+    treeOf.set(c, root);
+    c.children.forEach((ch) => mark(ch, root));
+  };
+  roots.forEach((r) => mark(r, r));
+  const foreignKids = (root: Cluster) =>
+    clusters
+      .filter((c) => treeOf.get(c) === root)
+      .flatMap((c) => c.members.flatMap((id) => childrenOf(ix, id)))
+      .filter((k) => treeOf.get(clusterOf.get(k)!) !== root);
+  const attached = roots.filter((r, i) => i > 0 && foreignKids(r).length > 0);
+
+  let cursor = 0;
+  const sideBySide = (t: Cluster) => {
+    measure(t);
+    place(t, cursor, 0);
+    emit(t, out);
+    cursor += t.width + TREE_GAP;
+  };
+  roots.filter((r) => !attached.includes(r)).forEach(sideBySide);
+
+  const collides = (v: Vector3) =>
+    [...out.values()].some((w) => Math.abs(w.y - v.y) < 0.01 && Math.abs(w.z - v.z) < 1.6 && Math.abs(w.x - v.x) < NODE_W * 0.95);
+
+  const pending = [...attached];
+  while (pending.length) {
+    const t = pending.find((p) => foreignKids(p).some((k) => out.has(k)));
+    if (!t) {
+      pending.splice(0).forEach(sideBySide); // anchors never placed (malformed graph)
+      break;
+    }
+    pending.splice(pending.indexOf(t), 1);
+    const anchors = foreignKids(t).map((k) => out.get(k)).filter((v): v is Vector3 => !!v);
+    measure(t);
+    place(t, 0, 0);
+    const tmp = new Map<string, Vector3>();
+    emit(t, tmp);
+    const dx = anchors.reduce((s, v) => s + v.x, 0) / anchors.length - t.x;
+    const dz = Math.min(...anchors.map((v) => v.z)) - STUB_Z;
+    for (const v of tmp.values()) v.add(new Vector3(dx, 0, dz));
+    // Slide sideways until nothing overlaps.
+    const vs = [...tmp.values()];
+    for (let step = 1, shift = 0; vs.some(collides); step++) {
+      const next = (step % 2 ? 1 : -1) * Math.ceil(step / 2) * NODE_W;
+      for (const v of vs) v.x += next - shift;
+      shift = next;
+    }
+    for (const [id, v] of tmp) out.set(id, v);
   }
 
   // Center the whole forest around the origin.
@@ -202,3 +230,25 @@ export function computeLayout(people: Person[], rels: Relationship[]): Map<strin
   }
   return out;
 }
+
+/**
+ * Bend the flat layout onto a gentle cylinder curving toward the viewer. Keeps
+ * neighbour spacing, adds depth, and keeps very wide trees within ~150° of arc.
+ */
+export function bend(flat: Map<string, Vector3>): Map<string, Vector3> {
+  const out = new Map<string, Vector3>();
+  if (flat.size === 0) return out;
+  const xs = [...flat.values()].map((v) => v.x);
+  const R = Math.max(BEND_MIN_RADIUS, (Math.max(...xs) - Math.min(...xs)) / 2.6);
+  for (const [id, v] of flat) {
+    const r = R - v.z; // nodes nearer the viewer sit on a smaller radius
+    const a = v.x / r; // arc length = flat x, so row spacing is preserved
+    out.set(id, new Vector3(r * Math.sin(a), v.y, R - r * Math.cos(a)));
+  }
+  const zs = [...out.values()].map((v) => v.z);
+  const mid = (Math.min(...zs) + Math.max(...zs)) / 2;
+  for (const v of out.values()) v.z -= mid;
+  return out;
+}
+
+export const computeLayout = (people: Person[], rels: Relationship[]) => bend(computeFlatLayout(people, rels));
