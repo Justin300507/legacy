@@ -10,12 +10,15 @@ import { useConnectionPath } from '../../store/selectors';
 import { useUI } from '../../store/ui';
 import { PersonPicker } from './PersonPicker';
 
-/** "Justin is Maria's first cousin", with names and relation emphasised. */
-function Sentence({ relation, a, b }: { relation: string; a: string; b: string }) {
+/** "Ajay is Eric's mother's cousin", with the formal term underneath when it differs. */
+function Sentence({ plain, formal, a, b }: { plain: string; formal: string; a: string; b: string }) {
   return (
-    <p className="sentence">
-      <em>{a}</em> is <em>{b}</em>’s <strong>{relation}</strong>
-    </p>
+    <>
+      <p className="sentence">
+        <em>{b}</em> is <em>{a}</em>’s <strong>{plain}</strong>
+      </p>
+      {formal !== plain && <p className="formal">Formally: {formal}</p>}
+    </>
   );
 }
 
@@ -70,7 +73,7 @@ export function ConnectionPanel() {
           ) : (
             description && (
               <>
-                <Sentence relation={description.relation} a={a.name} b={b.name} />
+                <Sentence plain={description.plain} formal={description.label} a={a.name} b={b.name} />
                 <p className="chain">
                   {description.chain.split(' → ').map((part, i) => (
                     <span key={i}>

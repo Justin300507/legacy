@@ -64,19 +64,48 @@ export function relationshipLabel(path: Step[], ix: GraphIndex, genderOf: (id: s
   return `${term} by marriage`;
 }
 
-/** label: what B is to A; relation: what A is to B (as used in the sentence). */
-export type ConnectionDescription = { label: string; relation: string; sentence: string; chain: string };
+const cousinWord = (degree: number) => (degree === 1 ? 'cousin' : `${ordinal(degree)} cousin`);
+
+/**
+ * Everyday wording for what the last person on `path` is to the first. "Removed" cousins
+ * become "mother's cousin" / "cousin's son"; everything else uses the standard label.
+ */
+export function plainLabel(path: Step[], ix: GraphIndex, genderOf: (id: string) => Gender | undefined): string {
+  const formal = relationshipLabel(path, ix, genderOf);
+  const s = path.map((st) => CODE[st.kind]).join('');
+  const m = /^(U*)(D*)$/.exec(s);
+  if (!m) return formal;
+  const up = m[1].length;
+  const down = m[2].length;
+  if (up < 2 || down < 2) return formal;
+  const degree = Math.min(up, down) - 1;
+  if (up === down) return cousinWord(degree);
+  if (up > down) {
+    // B is the cousin of one of A's ancestors: name that ancestor through A's own line.
+    const line = path.slice(0, up - down).map((st) => pick(PARENT, genderOf(st.to)));
+    return `${line.join("'s ")}'s ${cousinWord(degree)}`;
+  }
+  // B descends from one of A's cousins.
+  return `${cousinWord(degree)}'s ${bloodTerm(0, down - up, genderOf(path[path.length - 1].to))}`;
+}
+
+/**
+ * label: what B is to A (formal); plain: the same in everyday words;
+ * relation: what A is to B (formal). The sentence reads "B is A's <plain>".
+ */
+export type ConnectionDescription = { label: string; plain: string; relation: string; sentence: string; chain: string };
 
 export function describeConnection(path: Step[], ix: GraphIndex, people: Map<string, Person>): ConnectionDescription {
   const genderOf = (id: string) => people.get(id)?.gender;
   const name = (id: string) => people.get(id)?.name ?? 'Unknown';
-  if (path.length === 0) return { label: 'self', relation: 'self', sentence: 'Same person', chain: '' };
+  if (path.length === 0) return { label: 'self', plain: 'self', relation: 'self', sentence: 'Same person', chain: '' };
 
   const a = path[0].from;
   const b = path[path.length - 1].to;
   const label = relationshipLabel(path, ix, genderOf);
+  const plain = plainLabel(path, ix, genderOf);
   const relation = relationshipLabel(reversePath(path), ix, genderOf);
-  const sentence = `${name(a)} is ${name(b)}'s ${relation}`;
+  const sentence = `${name(b)} is ${name(a)}'s ${plain}`;
 
   const parts = [name(a)];
   for (let i = 0; i < path.length; i++) {
@@ -91,5 +120,5 @@ export function describeConnection(path: Step[], ix: GraphIndex, people: Map<str
     const forms = st.kind === 'parent' ? PARENT : st.kind === 'child' ? CHILD : PARTNER;
     parts.push(`${pick(forms, genderOf(st.to))} ${name(st.to)}`);
   }
-  return { label, relation, sentence, chain: parts.join(' → ') };
+  return { label, plain, relation, sentence, chain: parts.join(' → ') };
 }

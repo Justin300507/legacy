@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { buildIndex, findPath } from './graph';
-import { bloodTerm, describeConnection, relationshipLabel } from './relationship';
+import { bloodTerm, describeConnection, plainLabel, relationshipLabel } from './relationship';
 import { hayes } from './testFamily';
 
 const f = hayes();
@@ -97,22 +97,39 @@ describe('bloodTerm', () => {
 });
 
 describe('describeConnection', () => {
-  it('builds the sentence from A’s perspective and the step chain', () => {
+  it('says what B is to A, and builds the step chain', () => {
     const d = describeConnection(findPath(ix, 'Justin', 'Maria')!, ix, people);
-    expect(d.sentence).toBe("Justin is Maria's first cousin");
+    expect(d.sentence).toBe("Maria is Justin's cousin");
+    expect(d.label).toBe('first cousin');
     expect(d.chain).toBe('Justin → father Thomas → brother George → daughter Maria');
   });
 
-  it('uses the reverse relation for the sentence', () => {
+  it('keeps the formal reverse relation available', () => {
     const d = describeConnection(findPath(ix, 'Kate', 'Thomas')!, ix, people);
-    expect(d.label).toBe('father-in-law');
-    expect(d.sentence).toBe("Kate is Thomas's daughter-in-law");
+    expect(d.sentence).toBe("Thomas is Kate's father-in-law");
+    expect(d.relation).toBe('daughter-in-law');
     expect(d.chain).toBe('Kate → husband Justin → father Thomas');
   });
 
   it('marks half siblings in the chain', () => {
     const d = describeConnection(findPath(ix, 'Justin', 'Max')!, ix, people);
     expect(d.chain).toBe('Justin → half-brother Max');
-    expect(d.sentence).toBe("Justin is Max's half-brother");
+    expect(d.sentence).toBe("Max is Justin's half-brother");
   });
+});
+
+describe('plainLabel — everyday wording for removed cousins', () => {
+  const plain = (a: string, b: string) => plainLabel(findPath(ix, a, b)!, ix, genderOf);
+  it.each([
+    ['Leo', 'Maria', "father's cousin"], // Maria is Leo's first cousin once removed
+    ['Maria', 'Leo', "cousin's son"],
+    ['Noah', 'Maria', "father's father's cousin"], // first cousin twice removed
+    ['Maria', 'Noah', "cousin's grandson"],
+    ['Noah', 'Mia', "father's second cousin"],
+    ['Mia', 'Noah', "second cousin's son"],
+    ['Justin', 'Maria', 'cousin'],
+    ['Leo', 'Mia', 'second cousin'],
+    ['Justin', 'George', 'uncle'],
+    ['Kate', 'Thomas', 'father-in-law'],
+  ])('%s → %s is "%s"', (a, b, expected) => expect(plain(a, b)).toBe(expected));
 });
