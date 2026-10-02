@@ -64,29 +64,40 @@ export function relationshipLabel(path: Step[], ix: GraphIndex, genderOf: (id: s
   return `${term} by marriage`;
 }
 
-const cousinWord = (degree: number) => (degree === 1 ? 'cousin' : `${ordinal(degree)} cousin`);
+const cousinWord = (degree: number) => `${ordinal(degree)} cousin`;
 
 /**
- * Everyday wording for what the last person on `path` is to the first. "Removed" cousins
- * become "mother's cousin" / "cousin's son"; everything else uses the standard label.
+ * Everyday wording for what the last person on `path` is to the first. Never says "removed"
+ * or "by marriage": cousins are named through the chain instead — "mother's first cousin",
+ * "first cousin's son", "mother's first cousin's wife", "husband's second cousin".
+ * Other relations (uncle, sister-in-law, step-son, …) keep their standard label.
  */
 export function plainLabel(path: Step[], ix: GraphIndex, genderOf: (id: string) => Gender | undefined): string {
   const formal = relationshipLabel(path, ix, genderOf);
   const s = path.map((st) => CODE[st.kind]).join('');
-  const m = /^(U*)(D*)$/.exec(s);
+  const m = /^(P?)(U*)(D*)(P?)$/.exec(s);
   if (!m) return formal;
-  const up = m[1].length;
-  const down = m[2].length;
-  if (up < 2 || down < 2) return formal;
+  const pre = m[1] === 'P';
+  const post = m[4] === 'P';
+  const up = m[2].length;
+  const down = m[3].length;
+  if (up < 2 || down < 2) return formal; // not a cousin: standard terms are already plain
+  const blood = path.slice(pre ? 1 : 0, path.length - (post ? 1 : 0));
   const degree = Math.min(up, down) - 1;
-  if (up === down) return cousinWord(degree);
-  if (up > down) {
-    // B is the cousin of one of A's ancestors: name that ancestor through A's own line.
-    const line = path.slice(0, up - down).map((st) => pick(PARENT, genderOf(st.to)));
-    return `${line.join("'s ")}'s ${cousinWord(degree)}`;
+
+  let core: string;
+  if (up === down) core = cousinWord(degree);
+  else if (up > down) {
+    // A cousin of one of A's ancestors: name that ancestor through A's own line.
+    const line = blood.slice(0, up - down).map((st) => pick(PARENT, genderOf(st.to)));
+    core = `${line.join("'s ")}'s ${cousinWord(degree)}`;
+  } else {
+    // A descendant of one of A's cousins.
+    core = `${cousinWord(degree)}'s ${bloodTerm(0, down - up, genderOf(blood[blood.length - 1].to))}`;
   }
-  // B descends from one of A's cousins.
-  return `${cousinWord(degree)}'s ${bloodTerm(0, down - up, genderOf(path[path.length - 1].to))}`;
+  if (pre) core = `${pick(PARTNER, genderOf(path[0].to))}'s ${core}`;
+  if (post) core = `${core}'s ${pick(PARTNER, genderOf(path[path.length - 1].to))}`;
+  return core;
 }
 
 /**

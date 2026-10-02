@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { buildIndex, findPath } from './graph';
 import { bloodTerm, describeConnection, plainLabel, relationshipLabel } from './relationship';
-import { hayes } from './testFamily';
+import { hayes, makeFamily } from './testFamily';
 
 const f = hayes();
 const ix = buildIndex(f.people, f.relationships);
@@ -99,7 +99,7 @@ describe('bloodTerm', () => {
 describe('describeConnection', () => {
   it('says what B is to A, and builds the step chain', () => {
     const d = describeConnection(findPath(ix, 'Justin', 'Maria')!, ix, people);
-    expect(d.sentence).toBe("Maria is Justin's cousin");
+    expect(d.sentence).toBe("Maria is Justin's first cousin");
     expect(d.label).toBe('first cousin');
     expect(d.chain).toBe('Justin → father Thomas → brother George → daughter Maria');
   });
@@ -118,18 +118,35 @@ describe('describeConnection', () => {
   });
 });
 
-describe('plainLabel — everyday wording for removed cousins', () => {
+describe('plainLabel — everyday wording, never "removed" or "by marriage"', () => {
   const plain = (a: string, b: string) => plainLabel(findPath(ix, a, b)!, ix, genderOf);
   it.each([
-    ['Leo', 'Maria', "father's cousin"], // Maria is Leo's first cousin once removed
-    ['Maria', 'Leo', "cousin's son"],
-    ['Noah', 'Maria', "father's father's cousin"], // first cousin twice removed
-    ['Maria', 'Noah', "cousin's grandson"],
+    ['Leo', 'Maria', "father's first cousin"], // formally: first cousin once removed
+    ['Maria', 'Leo', "first cousin's son"],
+    ['Noah', 'Maria', "father's father's first cousin"], // formally: first cousin twice removed
+    ['Maria', 'Noah', "first cousin's grandson"],
     ['Noah', 'Mia', "father's second cousin"],
     ['Mia', 'Noah', "second cousin's son"],
-    ['Justin', 'Maria', 'cousin'],
+    ['Justin', 'Maria', 'first cousin'],
     ['Leo', 'Mia', 'second cousin'],
     ['Justin', 'George', 'uncle'],
     ['Kate', 'Thomas', 'father-in-law'],
+    ['Kate', 'Maria', "husband's first cousin"],
   ])('%s → %s is "%s"', (a, b, expected) => expect(plain(a, b)).toBe(expected));
+
+  it('names a removed cousin’s partner through the chain (reported case)', () => {
+    // Eric → mother Saby → father VJ → sister Akkuty → son Ajay → wife Jessy
+    const fam = makeFamily({
+      people: { Joshua: 'male', VJ: 'male', Akkuty: 'female', Saby: 'female', Eric: 'male', Ajay: 'male', Jessy: 'female' },
+      partners: [['Ajay', 'Jessy']],
+      parents: { VJ: ['Joshua'], Akkuty: ['Joshua'], Saby: ['VJ'], Eric: ['Saby'], Ajay: ['Akkuty'] },
+    });
+    const g = buildIndex(fam.people, fam.relationships);
+    const gen = new Map(fam.people.map((p) => [p.id, p.gender]));
+    const say = (a: string, b: string) => plainLabel(findPath(g, a, b)!, g, (id) => gen.get(id));
+    expect(say('Eric', 'Jessy')).toBe("mother's first cousin's wife");
+    expect(say('Eric', 'Ajay')).toBe("mother's first cousin");
+    expect(say('Jessy', 'Eric')).toBe("husband's first cousin's son");
+    for (const [a, b] of [['Eric', 'Jessy'], ['Jessy', 'Eric'], ['Eric', 'Ajay']]) expect(say(a, b)).not.toMatch(/removed|by marriage/);
+  });
 });
