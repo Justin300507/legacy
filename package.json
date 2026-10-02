@@ -1,5 +1,5 @@
 {
-  "name": "family-tree-3d",
+  "name": "legacy",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -39,5 +39,6 @@
     "typescript": "~6.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.3"
-  }
+  },
+  "description": "Your family tree as a living 3D network — glowing neurons, relationship finder, and Google Calendar reminders."
 }
