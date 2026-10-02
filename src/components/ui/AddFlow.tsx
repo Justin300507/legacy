@@ -1,7 +1,8 @@
 import { AnimatePresence, motion } from 'framer-motion';
+import { useState } from 'react';
 import type { AddRelation } from '../../lib/addRelative';
 import { partnersOf } from '../../lib/graph';
-import { answerPlaceholder, cancelAdd, chooseOtherParent, saveAdd } from '../../store/actions';
+import { answerPlaceholder, cancelAdd, chooseCoParentOf, chooseOtherParent, saveAdd } from '../../store/actions';
 import { useFamily } from '../../store/family';
 import { useUI, type AddFlow } from '../../store/ui';
 import { FORM_AT } from '../scene/Ghost';
@@ -36,6 +37,48 @@ export function useGhostForm() {
   const delay = flow?.relation === 'first' ? 300 : FORM_AT;
   const ready = useReachedTime(flow ? flow.startedAt + delay : Infinity);
   return flow && ready && !small ? <AddPersonForm key={flow.newId} flow={flow} /> : null;
+}
+
+/** "Is the new partner also the parent of …?" — without this, existing children become step-children. */
+function CoParentDialog({ anchorName, candidates }: { anchorName: string; candidates: string[] }) {
+  const byId = useFamily((s) => s.byId);
+  const [picked, setPicked] = useState(() => new Set(candidates));
+  const toggle = (id: string) =>
+    setPicked((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  return (
+    <div className="panel dialog" role="dialog" aria-modal="true">
+      <p>
+        Is <strong>{anchorName}</strong>’s new partner also the parent of these children?
+      </p>
+      <p className="dialog-hint">Untick anyone they’re a step-parent to.</p>
+      <div className="choice-list">
+        {candidates.map((id) => {
+          const p = byId.get(id);
+          if (!p) return null;
+          return (
+            <label key={id} className="choice check">
+              <input type="checkbox" checked={picked.has(id)} onChange={() => toggle(id)} />
+              <Avatar photo={p.photo} name={p.name} size={32} />
+              {p.name}
+            </label>
+          );
+        })}
+      </div>
+      <div className="actions">
+        <button className="btn ghost" onClick={cancelAdd}>
+          Cancel
+        </button>
+        <button className="btn primary" autoFocus onClick={() => chooseCoParentOf(candidates.filter((id) => picked.has(id)))}>
+          Continue
+        </button>
+      </div>
+    </div>
+  );
 }
 
 /** Questions asked before the ghost appears, plus the phone bottom-sheet form. */
@@ -96,6 +139,11 @@ export function AddFlowOverlay() {
               </button>
             </div>
           </div>
+        </motion.div>
+      )}
+      {flow?.stage === 'coParent' && anchor && (
+        <motion.div key="cp" className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+          <CoParentDialog anchorName={anchor.name} candidates={flow.coParentOf} />
         </motion.div>
       )}
       {flow?.stage === 'form' && small && ready && (

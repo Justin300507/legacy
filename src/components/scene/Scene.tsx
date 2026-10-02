@@ -11,6 +11,10 @@ import { useUI } from '../../store/ui';
 import { CameraRig } from './CameraRig';
 import { Connections, edgeKey } from './Connections';
 import { AddGhost, GhostRing } from './Ghost';
+import { Dust } from './Dust';
+import { Impulses } from './Impulses';
+import { BLOOM_THRESHOLD } from './materials';
+import { neuronTime } from './neuron';
 import { PathPulse } from './PathPulse';
 import { PersonNode, type NodeState } from './PersonNode';
 import { prunePhotoCache } from './photoCache';
@@ -32,6 +36,7 @@ function SceneContent({ ghostForm }: { ghostForm: ReactNode | null }) {
 
   // Animate every node toward its layout target; runs before nodes and lines read `live`.
   useFrame((_, dt) => {
+    neuronTime.value += Math.min(dt, 0.1);
     const a = 1 - Math.exp(-dt * 5);
     let moving = false;
     for (const [id, t] of targetsRef.current) {
@@ -58,6 +63,13 @@ function SceneContent({ ghostForm }: { ghostForm: ReactNode | null }) {
     return { pathIds: new Set(order), pathEdges: new Set(path.map((s) => edgeKey(s.from, s.to))), pathOrder: order };
   }, [path]);
 
+  // Backdrop motes sized to the tree, quantised so small edits don't regenerate them.
+  const dustRadius = useMemo(() => {
+    let r = 40;
+    for (const v of targets.values()) r = Math.max(r, Math.abs(v.x), Math.abs(v.y) * 2, Math.abs(v.z));
+    return Math.ceil(r / 20) * 20;
+  }, [targets]);
+
   const stateOf = (id: string): NodeState => (!pathIds ? 'normal' : pathIds.has(id) ? 'highlight' : 'dim');
   const picked = (id: string) => mode.kind === 'connect' && (mode.a === id || mode.b === id);
 
@@ -66,7 +78,9 @@ function SceneContent({ ghostForm }: { ghostForm: ReactNode | null }) {
       {people.map((p) => (
         <PersonNode key={p.id} person={p} state={stateOf(p.id)} selected={p.id === selectedId || picked(p.id)} hovered={p.id === hoveredId} />
       ))}
+      <Dust radius={dustRadius} />
       <Connections pathEdges={pathEdges} />
+      <Impulses />
       {pathOrder.length > 1 && <PathPulse key={pathOrder.join('>')} ids={pathOrder} />}
       {mode.kind === 'add' && isGhostStage(mode) && <AddGhost key={mode.newId} flow={mode} form={ghostForm} />}
       {loaded && people.length === 0 && mode.kind === 'idle' && (
@@ -93,7 +107,7 @@ export function Scene({ ghostForm }: { ghostForm: ReactNode | null }) {
       <OrbitControls makeDefault enableDamping dampingFactor={0.08} minDistance={3} maxDistance={4000} />
       <CameraRig />
       <EffectComposer multisampling={4}>
-        <Bloom mipmapBlur luminanceThreshold={1} luminanceSmoothing={0.25} intensity={1.3} radius={0.75} />
+        <Bloom mipmapBlur luminanceThreshold={BLOOM_THRESHOLD} luminanceSmoothing={0.3} intensity={1.6} radius={0.8} />
       </EffectComposer>
     </Canvas>
   );

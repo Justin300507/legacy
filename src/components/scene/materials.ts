@@ -12,6 +12,9 @@ import fontUrl from '@fontsource/inter/files/inter-latin-600-normal.woff?url';
 
 export const FONT = fontUrl;
 export const ACCENT = '#2F80FF';
+/** Below the bloom threshold (pure white would bloom into a smear). */
+export const LABEL_COLOR = '#d3dbea';
+export const BLOOM_THRESHOLD = 0.75;
 export const RING_R = 0.9;
 
 /** Accent colour scaled into HDR; values above ~4.5 cross the bloom threshold. */
@@ -61,7 +64,7 @@ const halo = (opacity: number, k = 1) =>
   new MeshBasicMaterial({ map: haloTex, color: blue(k), transparent: true, opacity, blending: AdditiveBlending, depthWrite: false });
 
 export const haloMat: Record<Look, MeshBasicMaterial> = {
-  normal: halo(0.55),
+  normal: halo(0.3),
   hover: halo(1, 1.4),
   selected: halo(1, 1.5),
   dim: halo(0.05),

@@ -1,12 +1,13 @@
 import { Billboard, Text } from '@react-three/drei';
 import { useFrame, type ThreeEvent } from '@react-three/fiber';
-import { memo, useEffect, useRef } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import type { Group } from 'three';
 import type { Person } from '../../lib/types';
 import { clickPerson } from '../../store/actions';
 import { live } from '../../store/live';
 import { useUI } from '../../store/ui';
-import { discMat, FONT, geo, haloMat, noRaycast, ringMat, type Look } from './materials';
+import { discMat, FONT, geo, haloMat, LABEL_COLOR, noRaycast, ringMat, type Look } from './materials';
+import { DENDRITE_VARIANTS, dendriteMat, hashString, somaGeometry, somaMat } from './neuron';
 import { usePhotoMaterial } from './photoCache';
 
 export type NodeState = 'normal' | 'dim' | 'highlight';
@@ -25,6 +26,14 @@ export const PersonNode = memo(function PersonNode({ person, state, selected, ho
   const group = useRef<Group>(null);
   const scale = useRef(0); // grows to 1 on mount: the scale-in animation
   const photo = usePhotoMaterial(person);
+  const shape = useMemo(() => {
+    const h = hashString(person.id);
+    return {
+      variant: h % DENDRITE_VARIANTS.length,
+      phase: (h >>> 3) % 4,
+      rotation: [((h >>> 5) % 628) / 100, ((h >>> 12) % 628) / 100, ((h >>> 19) % 628) / 100] as [number, number, number],
+    };
+  }, [person.id]);
   const dim = state === 'dim';
   const look: Look = dim ? 'dim' : state === 'highlight' ? 'highlight' : selected ? 'selected' : hovered ? 'hover' : 'normal';
 
@@ -60,6 +69,13 @@ export const PersonNode = memo(function PersonNode({ person, state, selected, ho
 
   return (
     <group ref={group} scale={0}>
+      <mesh geometry={somaGeometry} material={somaMat[look][shape.variant % 4]} raycast={noRaycast} />
+      <mesh
+        geometry={DENDRITE_VARIANTS[shape.variant]}
+        material={dendriteMat[look][shape.phase]}
+        rotation={shape.rotation}
+        raycast={noRaycast}
+      />
       <Billboard>
         <mesh geometry={geo.halo} material={haloMat[look]} position-z={-0.05} raycast={noRaycast} renderOrder={-1} />
         <group onPointerOver={over} onPointerOut={out} onClick={click}>
@@ -67,7 +83,7 @@ export const PersonNode = memo(function PersonNode({ person, state, selected, ho
           <mesh geometry={geo.disc} material={photo ?? (dim ? discMat.dim : discMat.solid)} />
           <mesh geometry={selected ? geo.ringThick : geo.ring} material={ringMat[look]} position-z={0.01} />
           {!photo && (
-            <Text font={FONT} fontSize={0.52} color="#ffffff" fillOpacity={textOpacity} anchorX="center" anchorY="middle" position-z={0.02}>
+            <Text font={FONT} fontSize={0.52} color={LABEL_COLOR} fillOpacity={textOpacity} anchorX="center" anchorY="middle" position-z={0.02}>
               {initials(person.name)}
             </Text>
           )}
@@ -77,7 +93,7 @@ export const PersonNode = memo(function PersonNode({ person, state, selected, ho
           fontSize={0.34}
           maxWidth={3.4}
           textAlign="center"
-          color="#ffffff"
+          color={LABEL_COLOR}
           fillOpacity={textOpacity}
           anchorX="center"
           anchorY="top"
@@ -91,4 +107,4 @@ export const PersonNode = memo(function PersonNode({ person, state, selected, ho
   );
 });
 
-const RING_LABEL_GAP = 1.22;
+const RING_LABEL_GAP = 1.3;

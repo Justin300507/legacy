@@ -9,6 +9,9 @@ type Props = {
   placeholder: string;
   label?: string;
   className?: string;
+  /** Restrict choices to these ids. */
+  only?: Set<string>;
+  autoFocus?: boolean;
 };
 
 export function matchPeople(people: Person[], query: string, limit = 8): Person[] {
@@ -20,13 +23,14 @@ export function matchPeople(people: Person[], query: string, limit = 8): Person[
 }
 
 /** Searchable person dropdown. */
-export function PersonPicker({ value, onPick, placeholder, label, className }: Props) {
-  const people = useFamily((s) => s.people);
+export function PersonPicker({ value, onPick, placeholder, label, className, only, autoFocus }: Props) {
+  const allPeople = useFamily((s) => s.people);
   const byId = useFamily((s) => s.byId);
   const listId = useId();
   const [query, setQuery] = useState('');
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(0);
+  const people = useMemo(() => (only ? allPeople.filter((p) => only.has(p.id)) : allPeople), [allPeople, only]);
   const matches = useMemo(() => matchPeople(people, query), [people, query]);
   const selected = value ? byId.get(value) : undefined;
 
@@ -64,6 +68,7 @@ export function PersonPicker({ value, onPick, placeholder, label, className }: P
         aria-expanded={open}
         aria-controls={listId}
         aria-label={label ?? placeholder}
+        autoFocus={autoFocus}
       />
       {open && matches.length > 0 && (
         <ul className="picker-list panel" id={listId} role="listbox">

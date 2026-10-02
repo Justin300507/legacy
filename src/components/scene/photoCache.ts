@@ -31,7 +31,7 @@ export function usePhotoMaterial(person: Person): MeshBasicMaterial | null {
     }
     if (cache.get(id)?.blob === photo) return;
     dispose(id);
-    const entry: Entry = { blob: photo, material: new MeshBasicMaterial({ transparent: true }), ready: false };
+    const entry: Entry = { blob: photo, material: new MeshBasicMaterial({ transparent: true, color: 0xc4c4c4 }), ready: false };
     cache.set(id, entry);
     const url = URL.createObjectURL(photo);
     loader.load(

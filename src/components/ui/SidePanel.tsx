@@ -1,13 +1,25 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useState } from 'react';
-import { canAdd, type AddRelation } from '../../lib/addRelative';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { canAdd, parentCandidates, suggestedParents, type AddRelation } from '../../lib/addRelative';
 import { childrenOf, parentsOf, partnersOf, siblingsOf } from '../../lib/graph';
-import { cancelAdd, chooseRelation, confirmDelete, flyToPerson, savePerson, startAdd, startConnection } from '../../store/actions';
+import type { Relationship } from '../../lib/types';
+import {
+  cancelAdd,
+  chooseRelation,
+  confirmDelete,
+  confirmUnlink,
+  flyToPerson,
+  linkParent,
+  savePerson,
+  startAdd,
+  startConnection,
+} from '../../store/actions';
 import { useFamily } from '../../store/family';
 import { useUI } from '../../store/ui';
 import { Avatar } from './Avatar';
 import { useIsSmall } from './hooks';
 import { PersonForm } from './PersonForm';
+import { PersonPicker } from './PersonPicker';
 
 const GENDER_LABEL = { male: 'Male', female: 'Female', other: 'Other' } as const;
 const RELATIONS: { id: Exclude<AddRelation, 'first'>; label: string }[] = [
@@ -17,9 +29,19 @@ const RELATIONS: { id: Exclude<AddRelation, 'first'>; label: string }[] = [
   { id: 'sibling', label: 'Sibling' },
 ];
 
-function RelativeList({ title, ids, half }: { title: string; ids: readonly string[]; half?: Set<string> }) {
+type ListProps = {
+  title: string;
+  ids: readonly string[];
+  half?: Set<string>;
+  /** The relationship joining the selected person to `id`, if it can be removed from here. */
+  linkOf?: (id: string) => Relationship | undefined;
+  unlinkText?: (name: string) => string;
+  children?: ReactNode;
+};
+
+function RelativeList({ title, ids, half, linkOf, unlinkText, children }: ListProps) {
   const byId = useFamily((s) => s.byId);
-  if (!ids.length) return null;
+  if (!ids.length && !children) return null;
   return (
     <section className="relatives">
       <h4>{title}</h4>
@@ -27,18 +49,51 @@ function RelativeList({ title, ids, half }: { title: string; ids: readonly strin
         {ids.map((id) => {
           const p = byId.get(id);
           if (!p) return null;
+          const link = linkOf?.(id);
           return (
-            <li key={id}>
+            <li key={id} className="relative-row">
               <button className="relative" onClick={() => flyToPerson(id)}>
                 <Avatar photo={p.photo} name={p.name} size={30} />
                 <span>{p.name}</span>
                 {half?.has(id) && <small>half</small>}
               </button>
+              {link && unlinkText && (
+                <button className="unlink" title="Remove this link" aria-label={`Remove link to ${p.name}`} onClick={() => confirmUnlink(link.id, unlinkText(p.name))}>
+                  ×
+                </button>
+              )}
             </li>
           );
         })}
       </ul>
+      {children}
     </section>
+  );
+}
+
+/** Link an existing person as a parent: quick suggestions plus a searchable picker. */
+function SetParent({ childId, childName }: { childId: string; childName: string }) {
+  const index = useFamily((s) => s.index);
+  const byId = useFamily((s) => s.byId);
+  const [open, setOpen] = useState(false);
+  const candidates = useMemo(() => new Set(parentCandidates(index, childId)), [index, childId]);
+  const suggested = suggestedParents(index, childId);
+  if (!candidates.size) return null;
+  return (
+    <div className="set-parent">
+      {suggested.map((id) => (
+        <button key={id} className="btn suggest" onClick={() => linkParent(childId, id)}>
+          + Set {byId.get(id)?.name} as parent
+        </button>
+      ))}
+      {open ? (
+        <PersonPicker value={null} placeholder={`Choose ${childName}’s parent…`} only={candidates} autoFocus onPick={(id) => void linkParent(childId, id).then(() => setOpen(false))} />
+      ) : (
+        <button className="link" onClick={() => setOpen(true)}>
+          + Set an existing person as parent
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -47,6 +102,7 @@ export function SidePanel() {
   const mode = useUI((s) => s.mode);
   const person = useFamily((s) => (selectedId ? s.byId.get(selectedId) : undefined));
   const index = useFamily((s) => s.index);
+  const relationships = useFamily((s) => s.relationships);
   const small = useIsSmall();
   const [editing, setEditing] = useState(false);
 
@@ -121,9 +177,26 @@ export function SidePanel() {
                       Find connection
                     </button>
                   </div>
-                  <RelativeList title="Parents" ids={parentsOf(index, person.id)} />
-                  <RelativeList title="Partners" ids={partnersOf(index, person.id)} />
-                  <RelativeList title="Children" ids={childrenOf(index, person.id)} />
+                  <RelativeList
+                    title="Parents"
+                    ids={parentsOf(index, person.id)}
+                    linkOf={(id) => relationships.find((r) => r.type === 'parent' && r.parent === id && r.child === person.id)}
+                    unlinkText={(name) => `Remove ${name} as ${person.name}’s parent? Both people stay in the tree.`}
+                  >
+                    <SetParent childId={person.id} childName={person.name} />
+                  </RelativeList>
+                  <RelativeList
+                    title="Partners"
+                    ids={partnersOf(index, person.id)}
+                    linkOf={(id) => relationships.find((r) => r.type === 'partner' && ((r.a === id && r.b === person.id) || (r.b === id && r.a === person.id)))}
+                    unlinkText={(name) => `Remove the partner link between ${person.name} and ${name}? Both people stay in the tree.`}
+                  />
+                  <RelativeList
+                    title="Children"
+                    ids={childrenOf(index, person.id)}
+                    linkOf={(id) => relationships.find((r) => r.type === 'parent' && r.parent === person.id && r.child === id)}
+                    unlinkText={(name) => `Remove ${person.name} as ${name}’s parent? Both people stay in the tree.`}
+                  />
                   <RelativeList title="Siblings" ids={siblings.map((s) => s.id)} half={new Set(siblings.filter((s) => s.half).map((s) => s.id))} />
                   <RelativeList title="Grandparents" ids={grandparents} />
                   <div className="panel-actions secondary">

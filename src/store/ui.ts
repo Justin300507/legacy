@@ -7,9 +7,10 @@ export type AddFlow = {
   anchorId: string | null;
   relation: AddRelation | null;
   /** pick type → optional question → form (spin, ghost, line, form) → closing (fade out) */
-  stage: 'pick' | 'placeholder' | 'otherParent' | 'form' | 'closing';
+  stage: 'pick' | 'placeholder' | 'otherParent' | 'coParent' | 'form' | 'closing';
   otherParent: string | null;
   placeholderId: string | null;
+  coParentOf: string[];
   newId: string;
   startedAt: number;
   closingAt: number | null;

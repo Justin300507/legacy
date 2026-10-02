@@ -15,10 +15,12 @@ To try it on a phone, run `npm run dev -- --host` and open the printed network U
 
 ## Features
 
+- **Neuron look** — each person is a glowing cell body with branching dendrites that fire electrical impulses; connections are glowing nerve fibres carrying impulses parent → child, over a field of drifting motes.
 - **3D tree** — generations on Y, couples side by side, children under their parents' midpoint, sibling branches fanned out in depth, the whole tree gently curved toward you. In-laws' families sit behind the person who married in. Orbit / zoom / pan with mouse or touch.
 - **Find Connection** — pick two people (click nodes or search). Shortest path through parent/child/partner links, named with the common-ancestor method: *father*, *great-uncle*, *second cousin once removed*, *sister-in-law*, *step-son*, … The rest of the tree dims, the path lights up with a travelling pulse, and the camera frames it.
 - **Add relative** — select a person → *Add relative* → Parent / Partner / Child / Sibling. The camera spins round, a ghost node appears where the new person will go, the connecting line draws itself, and the form slides in beside it (bottom sheet on phones). Asks for the other parent when someone has several partners, and offers a placeholder parent for siblings of someone with no parents.
-- Side panel with details and direct relatives (click to fly there), edit, delete.
+- Side panel with details and direct relatives (click to fly there), edit, delete. **Set parent** links an existing person as a parent (with a one-click suggestion for the parent's partner); × on any parent/partner/child removes just that link.
+- Adding a partner to someone whose children have no other parent asks whether the partner is their parent too — otherwise they'd be step-children.
 - Search, empty state, demo family (15 people, 4 generations, remarriage, cousins), JSON export / import with photos embedded as base64.
 
 ## Layout of the code

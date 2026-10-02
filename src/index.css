@@ -185,6 +185,29 @@ textarea { resize: vertical; }
 .relative span:not(.avatar) { flex: 1; }
 .relative small { color: var(--muted); font-size: 12px; }
 .relation-picker .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.relative-row { display: flex; align-items: center; }
+.relative-row .relative { flex: 1; }
+.unlink {
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  font-size: 18px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.relative-row:hover .unlink, .unlink:focus-visible { opacity: 1; }
+.unlink:hover { color: var(--danger); background: rgba(255, 90, 106, 0.12); }
+@media (hover: none) { .unlink { opacity: 0.7; } }
+.set-parent { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-top: 6px; }
+.set-parent .picker { width: 100%; }
+.btn.suggest { font-size: 13px; padding: 6px 10px; border-style: dashed; }
+.dialog-hint { color: var(--muted); font-size: 13px; margin-top: 4px !important; }
+.choice.check { cursor: pointer; }
+.choice.check input { width: 18px; height: 18px; accent-color: var(--accent); flex: none; }
 .relation-picker .grid .btn { padding: 14px; }
 
 /* ---------- forms ---------- */

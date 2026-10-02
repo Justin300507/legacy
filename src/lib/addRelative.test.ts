@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { canAdd, lineAnchorIds, planAddition, PLACEHOLDER_NAME } from './addRelative';
-import { buildIndex } from './graph';
+import { canAdd, lineAnchorIds, parentCandidates, planAddition, PLACEHOLDER_NAME, singleParentChildren, suggestedParents } from './addRelative';
+import { buildIndex, findPath } from './graph';
+import { relationshipLabel } from './relationship';
 import { hayes } from './testFamily';
 import type { Relationship } from './types';
 
@@ -51,6 +52,51 @@ describe('lineAnchorIds', () => {
   it('starts a sibling line at the parents', () => {
     expect(lineAnchorIds(ix, 'Justin', 'sibling', none)).toEqual(['Thomas', 'Linda']);
     expect(lineAnchorIds(ix, 'Kim', 'sibling', { ...none, placeholderId: 'ph' })).toEqual(['ph']);
+  });
+});
+
+describe('partner added after the children (reported bug)', () => {
+  // Maria has Mia with no other parent recorded; then Maria gets a partner.
+  const plan = (coParentOf?: string[]) =>
+    planAddition(ix, 'Maria', 'partner', { id: 'Paul', name: 'Paul', gender: 'male' }, { ...none, coParentOf });
+  const withPaul = (coParentOf?: string[]) => {
+    const p = plan(coParentOf);
+    const people = [...f.people, ...p.people];
+    const g = buildIndex(people, [...f.relationships, ...p.relationships]);
+    const genders = new Map(people.map((x) => [x.id, x.gender]));
+    return (a: string, b: string) => relationshipLabel(findPath(g, a, b)!, g, (id) => genders.get(id));
+  };
+
+  it('offers the single-parent children as co-parent candidates', () => {
+    expect(singleParentChildren(ix, 'Maria')).toEqual(['Mia']);
+    expect(singleParentChildren(ix, 'Justin')).toEqual([]); // Leo already has both parents
+  });
+
+  it('makes the partner a parent of the chosen children: daughter, not step-daughter', () => {
+    const rel = withPaul(['Mia']);
+    expect(rel('Paul', 'Mia')).toBe('daughter');
+    expect(rel('Mia', 'Paul')).toBe('father');
+    expect(rel('Zoe', 'Paul')).toBe('grandfather');
+  });
+
+  it('keeps step-relations when the partner is not a parent', () => {
+    expect(withPaul([])('Paul', 'Mia')).toBe('step-daughter');
+  });
+});
+
+describe('linking an existing parent', () => {
+  it('suggests the existing parent’s partner', () => {
+    expect(suggestedParents(ix, 'Ella')).toEqual(['Thomas']); // Rita's daughter; Rita is partnered with Thomas
+    expect(suggestedParents(ix, 'Justin')).toEqual([]); // already has two parents
+  });
+
+  it('never offers the child, a current parent, or a descendant', () => {
+    const c = parentCandidates(ix, 'Mia');
+    expect(c).not.toContain('Mia');
+    expect(c).not.toContain('Maria');
+    expect(c).not.toContain('Zoe');
+    expect(c).toContain('Ben');
+    expect(parentCandidates(ix, 'Justin')).toEqual([]);
   });
 });
 

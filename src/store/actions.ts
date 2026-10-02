@@ -1,5 +1,5 @@
 import { Vector3 } from 'three';
-import { planAddition, type AddRelation } from '../lib/addRelative';
+import { planAddition, singleParentChildren, type AddRelation } from '../lib/addRelative';
 import { cam, flyToPoint, frame, orbitToShow, type CameraMove } from '../lib/camera';
 import { demoFamily } from '../lib/demo';
 import { parentsOf, partnersOf } from '../lib/graph';
@@ -106,6 +106,7 @@ export function startAdd(anchorId: string | null) {
     stage: 'pick',
     otherParent: null,
     placeholderId: null,
+    coParentOf: [],
     newId: newId(),
     startedAt: 0,
     closingAt: null,
@@ -121,6 +122,10 @@ export function chooseRelation(relation: AddRelation) {
   const { index } = family();
   const next = { ...flow, relation };
   if (relation === 'sibling' && parentsOf(index, flow.anchorId).length === 0) return ui().setMode({ ...next, stage: 'placeholder' });
+  if (relation === 'partner') {
+    const kids = singleParentChildren(index, flow.anchorId);
+    if (kids.length) return ui().setMode({ ...next, stage: 'coParent', coParentOf: kids });
+  }
   if (relation === 'child') {
     const partners = partnersOf(index, flow.anchorId);
     if (partners.length > 1) return ui().setMode({ ...next, stage: 'otherParent' });
@@ -139,6 +144,11 @@ export function answerPlaceholder(create: boolean) {
 export function chooseOtherParent(id: string | null) {
   const flow = currentFlow();
   if (flow) enterForm({ ...flow, otherParent: id });
+}
+
+export function chooseCoParentOf(childIds: string[]) {
+  const flow = currentFlow();
+  if (flow) enterForm({ ...flow, coParentOf: childIds });
 }
 
 function enterForm(flow: AddFlow) {
@@ -180,6 +190,31 @@ export function cancelAdd() {
     const m = ui().mode;
     if (m.kind === 'add' && m.newId === flow.newId) ui().setMode({ kind: 'idle' });
   }, FADE_MS);
+}
+
+// ---------- linking existing people ----------
+
+export async function linkParent(childId: string, parentId: string) {
+  try {
+    await family().add([], [{ id: newId(), type: 'parent', parent: parentId, child: childId }]);
+  } catch (e) {
+    report(e);
+  }
+}
+
+export function confirmUnlink(relId: string, message: string) {
+  ui().setDialog({
+    message,
+    confirmLabel: 'Remove link',
+    danger: true,
+    onConfirm: async () => {
+      try {
+        await family().unlink(relId);
+      } catch (e) {
+        report(e);
+      }
+    },
+  });
 }
 
 // ---------- edit / delete ----------

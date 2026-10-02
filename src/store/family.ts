@@ -13,6 +13,7 @@ type FamilyState = {
   add: (people: Person[], relationships: Relationship[]) => Promise<void>;
   update: (person: Person) => Promise<void>;
   remove: (id: string) => Promise<void>;
+  unlink: (relationshipId: string) => Promise<void>;
   replaceAll: (people: Person[], relationships: Relationship[]) => Promise<void>;
 };
 
@@ -57,6 +58,12 @@ export const useFamily = create<FamilyState>((set, get) => ({
       await db.relationships.bulkDelete(relIds);
     });
     set(derive(s.people.filter((p) => p.id !== id), s.relationships.filter((r) => !involves(r, id))));
+  },
+
+  async unlink(relationshipId) {
+    await db.relationships.delete(relationshipId);
+    const s = get();
+    set(derive(s.people, s.relationships.filter((r) => r.id !== relationshipId)));
   },
 
   async replaceAll(people, relationships) {
