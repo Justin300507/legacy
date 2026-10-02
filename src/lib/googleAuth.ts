@@ -1,4 +1,9 @@
-/** Google sign-in for Calendar via Google Identity Services (browser token flow; no backend). */
+/**
+ * Google sign-in for Calendar. Website: Google Identity Services token flow (no backend).
+ * Android app: native Play services authorization via the GoogleAuth plugin, since Google
+ * blocks OAuth inside WebViews.
+ */
+import { Capacitor, registerPlugin } from '@capacitor/core';
 
 // Least privilege: only calendars this app creates — never the user's other calendars.
 const SCOPE = 'https://www.googleapis.com/auth/calendar.app.created';
@@ -59,6 +64,38 @@ function stored(): Stored | null {
 
 export const hasValidToken = () => stored() !== null;
 
+function remember(value: string, seconds: number) {
+  try {
+    sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ value, expiresAt: Date.now() + seconds * 1000 }));
+  } catch {
+    /* private mode: token just won't survive a reload */
+  }
+}
+
+type NativeGoogleAuth = {
+  authorize(o: { interactive: boolean }): Promise<{ accessToken?: string; needsInteraction?: boolean }>;
+  clearToken(o: { token: string }): Promise<void>;
+};
+const NativeGoogle = registerPlugin<NativeGoogleAuth>('GoogleAuth');
+export const isNativeApp = () => Capacitor.isNativePlatform();
+
+/** Sync can run here: the Android app (native sign-in) or a website with a configured client ID. */
+export const googleSyncSupported = () => isNativeApp() || !!googleClientId;
+
+async function nativeToken(interactive: boolean): Promise<string | null> {
+  try {
+    const r = await NativeGoogle.authorize({ interactive });
+    if (!r.accessToken) return null;
+    // Play services doesn't report expiry; access tokens last an hour, refresh a little early.
+    remember(r.accessToken, 50 * 60);
+    return r.accessToken;
+  } catch (e) {
+    const err = e as { code?: string; message?: string };
+    if (err.code === 'CANCELED') throw new Error('Sign-in window was closed');
+    throw new Error(err.message || 'Google sign-in failed');
+  }
+}
+
 /**
  * A valid access token. Non-interactive calls return null when the user must sign in again
  * (tokens last about an hour; a popup can only open from a click).
@@ -66,6 +103,8 @@ export const hasValidToken = () => stored() !== null;
 export async function getGoogleToken(interactive: boolean): Promise<string | null> {
   const cached = stored();
   if (cached) return cached.value;
+  // Native can refresh silently when access was granted before, so auto-sync keeps working.
+  if (isNativeApp()) return nativeToken(interactive);
   if (!interactive) return null;
   if (!googleClientId) throw new Error('Google Calendar is not configured for this site yet.');
   if (!window.google?.accounts?.oauth2) await preloadGoogle();
@@ -76,11 +115,7 @@ export async function getGoogleToken(interactive: boolean): Promise<string | nul
       callback: (r) => {
         if (r.error || !r.access_token) return reject(new Error(r.error_description || r.error || 'Google sign-in failed'));
         const value = r.access_token;
-        try {
-          sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ value, expiresAt: Date.now() + (r.expires_in ?? 3600) * 1000 }));
-        } catch {
-          /* private mode: token just won't survive a reload */
-        }
+        remember(value, r.expires_in ?? 3600);
         resolve(value);
       },
       error_callback: (e) => reject(new Error(e.type === 'popup_closed' ? 'Sign-in window was closed' : e.message || 'Google sign-in failed')),
@@ -96,5 +131,7 @@ export function forgetGoogleToken() {
   } catch {
     /* ignore */
   }
-  if (s && window.google?.accounts?.oauth2) window.google.accounts.oauth2.revoke(s.value);
+  if (!s) return;
+  if (isNativeApp()) void NativeGoogle.clearToken({ token: s.value }).catch(() => undefined);
+  else if (window.google?.accounts?.oauth2) window.google.accounts.oauth2.revoke(s.value);
 }

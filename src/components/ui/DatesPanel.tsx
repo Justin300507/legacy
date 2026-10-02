@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo } from 'react';
 import { familyDates, formatDate, upcomingDates, type Upcoming } from '../../lib/dates';
-import { googleClientId, preloadGoogle } from '../../lib/googleAuth';
+import { googleSyncSupported, isNativeApp, preloadGoogle } from '../../lib/googleAuth';
 import { flyToPerson } from '../../store/actions';
 import { calendarAvailable, useCalendar } from '../../store/calendar';
 import { useFamily } from '../../store/family';
@@ -35,12 +35,10 @@ function ago(ts: number) {
 
 function CalendarCard() {
   const cal = useCalendar();
-  if (!googleClientId)
-    return <p className="dialog-hint">Google Calendar sync isn’t switched on for this site yet.</p>;
-  if (!calendarAvailable())
+  if (!googleSyncSupported())
     return (
       <p className="dialog-hint">
-        Google Calendar sync works on the website: open <a href={SITE}>{SITE.replace('https://', '')}</a>, Import your tree there and connect.
+        Google Calendar sync isn’t switched on here. Use <a href={SITE}>{SITE.replace('https://', '')}</a> or the Android app.
       </p>
     );
   if (!cal.enabled)
@@ -103,7 +101,7 @@ export function DatesPanel() {
 
   // Load Google's script early so the sign-in popup opens straight from the button click.
   useEffect(() => {
-    if (open && calendarAvailable()) preloadGoogle().catch(() => undefined);
+    if (open && calendarAvailable() && !isNativeApp()) preloadGoogle().catch(() => undefined);
   }, [open]);
 
   const close = () => useUI.getState().setDatesOpen(false);

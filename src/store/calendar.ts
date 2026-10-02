@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { googleCalendarApi, GoogleAuthError, syncCalendar, type SyncResult } from '../lib/calendarSync';
 import { familyDates } from '../lib/dates';
 import { getSetting, setSetting } from '../lib/db';
-import { forgetGoogleToken, getGoogleToken, googleClientId } from '../lib/googleAuth';
+import { forgetGoogleToken, getGoogleToken, googleSyncSupported, isNativeApp } from '../lib/googleAuth';
 import { useFamily } from './family';
 
 type Saved = { enabled: boolean; calendarId: string | null; lastSync: number | null; lastResult: SyncResult | null };
@@ -22,7 +22,7 @@ type CalendarState = Saved & {
 const SETTING = 'googleCalendar';
 const AUTO_SYNC_DELAY = 2500;
 
-export const calendarAvailable = () => !!googleClientId && !(window as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor?.isNativePlatform?.();
+export const calendarAvailable = googleSyncSupported;
 
 let running: Promise<void> | null = null;
 let again = false;
@@ -60,6 +60,16 @@ export const useCalendar = create<CalendarState>((set, get) => {
           await run(interactive);
         } while (again && get().status === 'ok');
       } catch (e) {
+        if (e instanceof GoogleAuthError && isNativeApp()) {
+          // The app can fetch a fresh token silently: drop the rejected one and try once more.
+          forgetGoogleToken();
+          try {
+            await run(false);
+            return;
+          } catch {
+            /* fall through to the sign-in prompt */
+          }
+        }
         if (e instanceof GoogleAuthError) {
           forgetGoogleToken();
           set({ status: 'needs-signin', message: 'Google sign-in expired. Sign in again to sync.' });
