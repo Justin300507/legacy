@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Family 3D</string>
-    <string name="title_activity_main">Family 3D</string>
+    <string name="app_name">Legacy</string>
+    <string name="title_activity_main">Legacy</string>
     <string name="package_name">com.justin.family3d</string>
     <string name="custom_url_scheme">com.justin.family3d</string>
 </resources>

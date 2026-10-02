@@ -1,4 +1,4 @@
-# Family 3D
+# Legacy
 
 A 3D family tree that runs entirely in your browser. People are glowing blue rings in 3D space, connected by animated dotted lines. Data (including photos) is stored locally in IndexedDB — no backend.
 

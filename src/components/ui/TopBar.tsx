@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import { clearConnection, clearTree, exportFile, flyToPerson, frameAll, importFile, loadDemo, startConnection } from '../../store/actions';
+import { isNative } from '../../native';
 import { useFamily } from '../../store/family';
 import { useUI } from '../../store/ui';
 import { PersonPicker } from './PersonPicker';
@@ -15,11 +16,16 @@ export function TopBar() {
     <header className="top-bar">
       <div className="brand-search">
         <span className="brand">
-          <span className="brand-ring" /> Family<b>3D</b>
+          <span className="brand-ring" /> Legacy
         </span>
         {count > 0 && <PersonPicker className="search" value={null} placeholder="Search people…" onPick={flyToPerson} />}
       </div>
       <nav className="toolbar">
+        {!isNative() && (
+          <a className="btn primary get-app" href="/Legacy.apk" download="Legacy.apk">
+            Get Android app
+          </a>
+        )}
         <button className={`btn ${connecting ? 'primary' : ''}`} disabled={busy || count < 2} onClick={connecting ? clearConnection : startConnection}>
           Find Connection
         </button>

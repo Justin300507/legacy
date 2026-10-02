@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.justin.family3d',
-  appName: 'Family 3D',
+  appName: 'Legacy',
   webDir: 'dist',
   backgroundColor: '#000000',
   android: {

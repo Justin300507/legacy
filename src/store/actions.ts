@@ -303,7 +303,7 @@ export async function exportFile() {
   try {
     const { people, relationships } = family();
     const json = await exportTree(people, relationships);
-    const filename = `family-tree-${new Date().toISOString().slice(0, 10)}.json`;
+    const filename = `legacy-family-tree-${new Date().toISOString().slice(0, 10)}.json`;
     const native = await import('../native');
     if (native.isNative()) return await native.saveFileNative(filename, json);
     const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
