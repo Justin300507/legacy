@@ -1,5 +1,7 @@
 # Legacy
 
+Live: https://legacy-iota-two.vercel.app — Android APK: https://legacy-iota-two.vercel.app/Legacy.apk
+
 A 3D family tree that runs entirely in your browser. People are glowing blue rings in 3D space, connected by animated dotted lines. Data (including photos) is stored locally in IndexedDB — no backend.
 
 ## Run
@@ -35,4 +37,15 @@ src/lib/            pure logic (unit tested)
 src/store/          zustand stores (family data, UI mode), actions
 src/components/scene/  three.js scene (nodes, lines, ghost, camera rig)
 src/components/ui/     2D overlay (panels, forms, pickers)
+```
+
+## Deploy (Vercel, static)
+
+Only the built site and the APK are uploaded (never source or signing secrets):
+
+```bash
+npm run build
+D=.deploy/legacy; find $D -mindepth 1 -maxdepth 1 ! -name .vercel ! -name vercel.json -exec rm -rf {} +
+cp -r dist/. $D/ && cp android/app/build/outputs/apk/release/app-release.apk $D/Legacy.apk
+(cd $D && vercel deploy --prod --yes)
 ```
