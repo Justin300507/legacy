@@ -24,8 +24,9 @@ export function bloodTerm(up: number, down: number, g?: Gender, half = false): s
   if (down === 0) return up === 1 ? pick(PARENT, g) : greats(up - 2) + pick(['grandfather', 'grandmother', 'grandparent'], g);
   if (up === 0) return down === 1 ? pick(CHILD, g) : greats(down - 2) + pick(['grandson', 'granddaughter', 'grandchild'], g);
   if (up === 1 && down === 1) return (half ? 'half-' : '') + pick(SIBLING, g);
-  if (down === 1) return greats(up - 2) + pick(['uncle', 'aunt', 'aunt/uncle'], g);
-  if (up === 1) return greats(down - 2) + pick(['nephew', 'niece', 'niece/nephew'], g);
+  // Grandparents' generation is "grand-", each generation further adds "great-".
+  if (down === 1) return (up === 2 ? '' : greats(up - 3) + 'grand-') + pick(['uncle', 'aunt', 'aunt/uncle'], g);
+  if (up === 1) return (down === 2 ? '' : greats(down - 3) + 'grand-') + pick(['nephew', 'niece', 'niece/nephew'], g);
   const removed = Math.abs(up - down);
   return `${ordinal(Math.min(up, down) - 1)} cousin${removed ? ` ${removedText(removed)}` : ''}`;
 }
@@ -88,9 +89,9 @@ export function plainLabel(path: Step[], ix: GraphIndex, genderOf: (id: string) 
   let core: string;
   if (up === down) core = cousinWord(degree);
   else if (up > down) {
-    // A cousin of one of A's ancestors: name that ancestor through A's own line.
-    const line = blood.slice(0, up - down).map((st) => pick(PARENT, genderOf(st.to)));
-    core = `${line.join("'s ")}'s ${cousinWord(degree)}`;
+    // A cousin of one of A's ancestors: mother's / grandfather's / great-grandmother's first cousin.
+    const r = up - down;
+    core = `${bloodTerm(r, 0, genderOf(blood[r - 1].to))}'s ${cousinWord(degree)}`;
   } else {
     // A descendant of one of A's cousins.
     core = `${cousinWord(degree)}'s ${bloodTerm(0, down - up, genderOf(blood[blood.length - 1].to))}`;

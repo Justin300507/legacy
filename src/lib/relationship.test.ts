@@ -37,7 +37,12 @@ describe('relationshipLabel — collateral', () => {
     ['Max', 'Sara', 'half-sister'],
     ['Justin', 'George', 'uncle'],
     ['Justin', 'Anna', 'aunt'],
-    ['Leo', 'George', 'great-uncle'],
+    ['Leo', 'George', 'grand-uncle'], // grandparents' generation is 'grand'
+    ['Leo', 'Anna', 'grand-aunt'],
+    ['Noah', 'George', 'great-grand-uncle'], // one more generation adds 'great'
+    ['George', 'Leo', 'grand-nephew'],
+    ['George', 'Noah', 'great-grand-nephew'],
+    ['Anna', 'Leo', 'grand-nephew'],
     ['George', 'Justin', 'nephew'],
     ['George', 'Sara', 'niece'],
     ['Thomas', 'Alex', 'niece/nephew'],
@@ -123,7 +128,9 @@ describe('plainLabel — everyday wording, never "removed" or "by marriage"', ()
   it.each([
     ['Leo', 'Maria', "father's first cousin"], // formally: first cousin once removed
     ['Maria', 'Leo', "first cousin's son"],
-    ['Noah', 'Maria', "father's father's first cousin"], // formally: first cousin twice removed
+    ['Noah', 'Maria', "grandfather's first cousin"], // formally: first cousin twice removed
+    ['Zoe', 'Leo', "mother's second cousin"],
+    ['Zoe', 'Justin', "grandmother's first cousin"],
     ['Maria', 'Noah', "first cousin's grandson"],
     ['Noah', 'Mia', "father's second cousin"],
     ['Mia', 'Noah', "second cousin's son"],
@@ -133,6 +140,19 @@ describe('plainLabel — everyday wording, never "removed" or "by marriage"', ()
     ['Kate', 'Thomas', 'father-in-law'],
     ['Kate', 'Maria', "husband's first cousin"],
   ])('%s → %s is "%s"', (a, b, expected) => expect(plain(a, b)).toBe(expected));
+
+  it('adds "great" for each generation above the grandparents', () => {
+    const fam = makeFamily({
+      people: { Root: 'male', A1: 'male', B1: 'female', A2: 'male', B2: 'male', A3: 'female', A4: 'male', Me: 'female' },
+      parents: { A1: ['Root'], B1: ['Root'], A2: ['A1'], B2: ['B1'], A3: ['A2'], A4: ['A3'], Me: ['A4'] },
+    });
+    const g = buildIndex(fam.people, fam.relationships);
+    const gen = new Map(fam.people.map((p) => [p.id, p.gender]));
+    const say = (a: string, b: string) => plainLabel(findPath(g, a, b)!, g, (id) => gen.get(id));
+    expect(say('Me', 'B2')).toBe("great-grandfather's first cousin"); // B2 is A2's first cousin; A2 is Me's great-grandfather
+    expect(say('Me', 'B1')).toBe('great-great-grand-aunt'); // sister of Me's great-great-grandfather
+    expect(say('A3', 'B1')).toBe('grand-aunt');
+  });
 
   it('names a removed cousin’s partner through the chain (reported case)', () => {
     // Eric → mother Saby → father VJ → sister Akkuty → son Ajay → wife Jessy
