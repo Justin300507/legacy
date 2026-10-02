@@ -11,6 +11,8 @@ export type AddOptions = {
   placeholderId: string | null;
   /** For a partner: the anchor's children the new partner is also a parent of. */
   coParentOf?: string[];
+  /** For a partner: wedding date (YYYY-MM-DD), stored on the partner link. */
+  weddingDate?: string;
 };
 
 export const PLACEHOLDER_NAME = 'Unknown parent';
@@ -32,7 +34,7 @@ export function planAddition(
       return {
         people: [person],
         relationships: [
-          { id: newId(), type: 'partner', a: anchor, b: person.id },
+          { id: newId(), type: 'partner', a: anchor, b: person.id, ...(opts.weddingDate ? { weddingDate: opts.weddingDate } : {}) },
           ...(opts.coParentOf ?? []).map((child) => parentRel(person.id, child)),
         ],
       };

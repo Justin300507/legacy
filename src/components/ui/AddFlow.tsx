@@ -24,7 +24,7 @@ export function AddPersonForm({ flow }: { flow: AddFlow }) {
   const title = flow.relation === 'first' ? TITLES.first : `${TITLES[flow.relation!]} ${anchor?.name ?? ''}`;
   return (
     <motion.div className="panel form-panel" initial={{ opacity: 0, x: -24 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.35, ease: 'easeOut' }}>
-      <PersonForm title={title} submitLabel="Save" onSubmit={saveAdd} onCancel={cancelAdd} />
+      <PersonForm title={title} submitLabel="Save" showWedding={flow.relation === 'partner'} onSubmit={saveAdd} onCancel={cancelAdd} />
     </motion.div>
   );
 }
@@ -157,6 +157,7 @@ export function AddFlowOverlay() {
         >
           <PersonForm
             title={flow.relation === 'first' ? TITLES.first : `${TITLES[flow.relation!]} ${anchor?.name ?? ''}`}
+            showWedding={flow.relation === 'partner'}
             onSubmit={saveAdd}
             onCancel={cancelAdd}
           />

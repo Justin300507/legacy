@@ -5,6 +5,7 @@ import { ConnectionPanel } from './components/ui/ConnectionPanel';
 import { ConfirmDialog, Toast } from './components/ui/Overlays';
 import { SidePanel } from './components/ui/SidePanel';
 import { TopBar } from './components/ui/TopBar';
+import { DatesPanel } from './components/ui/DatesPanel';
 import { cancelCurrent, initialLoad } from './store/actions';
 import { useFamily } from './store/family';
 import { useUI } from './store/ui';
@@ -38,6 +39,7 @@ export default function App() {
         </p>
       )}
       <SidePanel />
+      <DatesPanel />
       <ConnectionPanel />
       <AddFlowOverlay />
       <ConfirmDialog />

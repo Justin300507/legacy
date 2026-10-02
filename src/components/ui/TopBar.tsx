@@ -11,6 +11,7 @@ export function TopBar() {
   const fileInput = useRef<HTMLInputElement>(null);
   const connecting = mode.kind === 'connect';
   const busy = mode.kind === 'add';
+  const datesOpen = useUI((s) => s.datesOpen);
 
   return (
     <header className="top-bar">
@@ -28,6 +29,9 @@ export function TopBar() {
         )}
         <button className={`btn ${connecting ? 'primary' : ''}`} disabled={busy || count < 2} onClick={connecting ? clearConnection : startConnection}>
           Find Connection
+        </button>
+        <button className={`btn ${datesOpen ? 'primary' : ''}`} onClick={() => useUI.getState().setDatesOpen(!datesOpen)}>
+          Dates
         </button>
         <button className="btn ghost" disabled={count === 0} onClick={() => frameAll()} title="Fit whole tree">
           Fit

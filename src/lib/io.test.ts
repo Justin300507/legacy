@@ -28,3 +28,17 @@ describe('export / import', () => {
     expect(parseTree(json).relationships).toEqual([]);
   });
 });
+
+describe('export / import of dates', () => {
+  it('keeps birthdays, death dates and wedding dates, and drops invalid ones', async () => {
+    const people = [
+      { id: 'a', name: 'A', birthDate: '1990-03-03', deathDate: '2020-01-01' },
+      { id: 'b', name: 'B', birthDate: '1990-02-30' },
+    ];
+    const relationships = [{ id: 'r', type: 'partner' as const, a: 'a', b: 'b', weddingDate: '2015-06-20' }];
+    const back = parseTree(await exportTree(people, relationships));
+    expect(back.people[0]).toMatchObject({ birthDate: '1990-03-03', deathDate: '2020-01-01' });
+    expect(back.people[1].birthDate).toBeUndefined();
+    expect(back.relationships[0]).toMatchObject({ weddingDate: '2015-06-20' });
+  });
+});

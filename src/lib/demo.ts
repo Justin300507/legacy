@@ -29,6 +29,18 @@ const PARTNERS: [string, string][] = [
   ['justin', 'kate'],
 ];
 
+// Month-day of birth for most of the family (year comes from the row); spread through the year.
+const BIRTHDAYS: Record<string, string> = {
+  robert: '04-12', eleanor: '10-21', thomas: '11-03', linda: '01-27', rita: '07-09', george: '10-14',
+  helen: '05-30', anna: '12-08', justin: '03-03', kate: '10-29', sara: '08-17', max: '11-20',
+  maria: '06-02', noah: '02-14', lily: '09-25',
+};
+const DEATHS: Record<string, string> = { robert: '2019-11-07' };
+const WEDDINGS: Record<string, string> = {
+  'robert+eleanor': '1960-10-18', 'thomas+linda': '1988-06-11', 'thomas+rita': '2001-11-24',
+  'george+helen': '1990-09-08', 'justin+kate': '2016-10-22',
+};
+
 const PARENTS: [child: string, parents: string[]][] = [
   ['thomas', ['robert', 'eleanor']],
   ['george', ['robert', 'eleanor']],
@@ -41,13 +53,25 @@ const PARENTS: [child: string, parents: string[]][] = [
   ['lily', ['maria']],
 ];
 
-/** 15 people over 4 generations, with a remarriage, half-siblings, cousins and second cousins. */
+/** 15 people over 4 generations, with a remarriage, half-siblings, cousins, second cousins, birthdays and anniversaries. */
 export function demoFamily(): { people: Person[]; relationships: Relationship[] } {
   const ids = new Map(PEOPLE.map(([key]) => [key, newId()]));
   const id = (k: string) => ids.get(k)!;
-  const people = PEOPLE.map(([key, name, gender, birthYear, notes]): Person => ({ id: id(key), name, gender, birthYear, notes }));
+  const people = PEOPLE.map(
+    ([key, name, gender, birthYear, notes]): Person => ({
+      id: id(key),
+      name,
+      gender,
+      birthYear,
+      notes,
+      ...(BIRTHDAYS[key] ? { birthDate: `${birthYear}-${BIRTHDAYS[key]}` } : {}),
+      ...(DEATHS[key] ? { deathDate: DEATHS[key] } : {}),
+    }),
+  );
   const relationships: Relationship[] = [
-    ...PARTNERS.map(([a, b]): Relationship => ({ id: newId(), type: 'partner', a: id(a), b: id(b) })),
+    ...PARTNERS.map(
+      ([a, b]): Relationship => ({ id: newId(), type: 'partner', a: id(a), b: id(b), ...(WEDDINGS[`${a}+${b}`] ? { weddingDate: WEDDINGS[`${a}+${b}`] } : {}) }),
+    ),
     ...PARENTS.flatMap(([child, parents]) =>
       parents.map((p): Relationship => ({ id: newId(), type: 'parent', parent: id(p), child: id(child) })),
     ),

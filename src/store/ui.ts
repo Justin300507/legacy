@@ -31,6 +31,8 @@ type UIState = {
   cameraMove: (CameraMove & { seq: number }) | null;
   toast: string | null;
   dialog: Dialog | null;
+  datesOpen: boolean;
+  setDatesOpen: (open: boolean) => void;
   setMode: (mode: Mode) => void;
   select: (id: string | null) => void;
   hover: (id: string | null) => void;
@@ -48,6 +50,8 @@ export const useUI = create<UIState>((set) => ({
   cameraMove: null,
   toast: null,
   dialog: null,
+  datesOpen: false,
+  setDatesOpen: (datesOpen) => set({ datesOpen }),
   setMode: (mode) => set({ mode }),
   select: (selectedId) => set({ selectedId }),
   hover: (hoveredId) => set({ hoveredId }),

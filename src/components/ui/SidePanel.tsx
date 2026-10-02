@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { canAdd, parentCandidates, suggestedParents, type AddRelation } from '../../lib/addRelative';
+import { formatDate } from '../../lib/dates';
 import { childrenOf, parentsOf, partnersOf, siblingsOf } from '../../lib/graph';
 import type { Relationship } from '../../lib/types';
 import {
@@ -11,6 +12,7 @@ import {
   flyToPerson,
   linkParent,
   savePerson,
+  setWeddingDate,
   startAdd,
   startConnection,
 } from '../../store/actions';
@@ -36,10 +38,42 @@ type ListProps = {
   /** The relationship joining the selected person to `id`, if it can be removed from here. */
   linkOf?: (id: string) => Relationship | undefined;
   unlinkText?: (name: string) => string;
+  /** Extra line under a relative, e.g. the wedding date on a partner link. */
+  extra?: (link: Relationship | undefined) => ReactNode;
   children?: ReactNode;
 };
 
-function RelativeList({ title, ids, half, linkOf, unlinkText, children }: ListProps) {
+/** "Married 20 Jun 2015" with inline edit, stored on the partner link. */
+function WeddingDate({ rel }: { rel: Relationship }) {
+  const [editing, setEditing] = useState(false);
+  if (rel.type !== 'partner') return null;
+  if (editing)
+    return (
+      <form
+        className="wedding-edit"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const v = (new FormData(e.currentTarget).get('date') as string) || undefined;
+          void setWeddingDate(rel.id, v).then(() => setEditing(false));
+        }}
+      >
+        <input name="date" type="date" defaultValue={rel.weddingDate ?? ''} max={new Date().toISOString().slice(0, 10)} autoFocus aria-label="Wedding date" />
+        <button className="btn primary small" type="submit">
+          Save
+        </button>
+        <button className="btn ghost small" type="button" onClick={() => setEditing(false)}>
+          Cancel
+        </button>
+      </form>
+    );
+  return (
+    <button className="link wedding" onClick={() => setEditing(true)}>
+      {rel.weddingDate ? `Married ${formatDate(rel.weddingDate)} · edit` : '+ Add wedding date'}
+    </button>
+  );
+}
+
+function RelativeList({ title, ids, half, linkOf, unlinkText, extra, children }: ListProps) {
   const byId = useFamily((s) => s.byId);
   if (!ids.length && !children) return null;
   return (
@@ -62,6 +96,7 @@ function RelativeList({ title, ids, half, linkOf, unlinkText, children }: ListPr
                   ×
                 </button>
               )}
+              {extra && <div className="relative-extra">{extra(link)}</div>}
             </li>
           );
         })}
@@ -145,7 +180,13 @@ export function SidePanel() {
                 <Avatar photo={person.photo} name={person.name} size={96} />
                 <h2>{person.name || 'Unnamed'}</h2>
                 <p className="meta">
-                  {[person.birthYear && `Born ${person.birthYear}`, person.gender && GENDER_LABEL[person.gender]].filter(Boolean).join(' · ') || 'No details yet'}
+                  {[
+                    person.birthDate ? `Born ${formatDate(person.birthDate)}` : person.birthYear && `Born ${person.birthYear}`,
+                    person.deathDate && `Died ${formatDate(person.deathDate)}`,
+                    person.gender && GENDER_LABEL[person.gender],
+                  ]
+                    .filter(Boolean)
+                    .join(' · ') || 'No details yet'}
                 </p>
               </header>
               {person.notes && <p className="notes">{person.notes}</p>}
@@ -190,6 +231,7 @@ export function SidePanel() {
                     ids={partnersOf(index, person.id)}
                     linkOf={(id) => relationships.find((r) => r.type === 'partner' && ((r.a === id && r.b === person.id) || (r.b === id && r.a === person.id)))}
                     unlinkText={(name) => `Remove the partner link between ${person.name} and ${name}? Both people stay in the tree.`}
+                    extra={(link) => link && <WeddingDate rel={link} />}
                   />
                   <RelativeList
                     title="Children"

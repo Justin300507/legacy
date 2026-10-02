@@ -361,3 +361,36 @@ textarea { resize: vertical; }
 .scene-error h3 { margin: 0 0 8px; }
 .scene-error p { margin: 0 0 10px; line-height: 1.5; }
 .get-app { text-decoration: none; display: inline-flex; align-items: center; }
+.field-error { color: var(--danger); font-size: 13px; margin: 6px 0 0; }
+input[type='date'] { color-scheme: dark; }
+.relative-row { flex-wrap: wrap; }
+.relative-extra { width: 100%; padding: 0 0 4px 46px; }
+.link.wedding { font-size: 12px; }
+.wedding-edit { display: flex; gap: 6px; align-items: center; }
+.wedding-edit input { padding: 5px 8px; font-size: 13px; }
+.btn.small { padding: 5px 9px; font-size: 12px; }
+
+/* ---------- dates & reminders ---------- */
+.dates-panel { position: absolute; top: calc(72px + var(--safe-top)); left: 16px; bottom: 16px; width: 340px; padding: 22px 20px; overflow-y: auto; z-index: 20; }
+.dates-panel h3 { margin: 0 0 4px; font-size: 18px; }
+.dates-panel .btn.wide { width: 100%; margin-top: 12px; }
+.dates-panel a.btn { text-decoration: none; text-align: center; color: inherit; }
+.cal-status { display: flex; align-items: center; gap: 8px; margin: 4px 0 0; font-size: 14px; color: #c9cfdb; }
+.cal-status.error, .cal-status.needs-signin { color: var(--danger); }
+.cal-status.error .dot, .cal-status.needs-signin .dot { background: var(--danger); box-shadow: 0 0 8px var(--danger); }
+.cal-status.syncing .dot { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: 0.3; } }
+.upcoming { list-style: none; margin: 0; padding: 0; }
+.date-badge { flex: none; width: 44px; height: 44px; border-radius: 10px; border: 1px solid var(--border); display: grid; place-items: center; align-content: center; line-height: 1.05; background: #05070b; }
+.date-badge b { font-size: 16px; }
+.date-badge small { font-size: 10px; text-transform: uppercase; color: var(--accent); letter-spacing: 0.06em; }
+.date-badge.remembrance { border-color: rgba(200, 210, 230, 0.35); }
+.date-badge.remembrance small { color: var(--muted); }
+.upcoming-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.upcoming-text small { color: var(--muted); font-size: 12px; margin: 0; }
+@media (max-width: 640px) {
+  .dates-panel { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 70vh; border-radius: 18px 18px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom)); }
+}
+.upcoming .relative .date-badge { flex: 0 0 44px; }
+.upcoming .relative .upcoming-text { flex: 1; }
+.upcoming .relative .upcoming-text span { flex: none; }

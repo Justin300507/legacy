@@ -1,3 +1,4 @@
+import { isValidDate } from './dates';
 import type { Gender, Person, Relationship } from './types';
 
 type ExportedPerson = Omit<Person, 'photo'> & { photo?: string };
@@ -52,6 +53,8 @@ export function parseTree(json: string): { people: Person[]; relationships: Rela
     const p: Person = { id: raw.id, name: raw.name };
     if (GENDERS.includes(raw.gender as Gender)) p.gender = raw.gender as Gender;
     if (typeof raw.birthYear === 'number' && Number.isFinite(raw.birthYear)) p.birthYear = Math.round(raw.birthYear);
+    if (isValidDate(raw.birthDate)) p.birthDate = raw.birthDate;
+    if (isValidDate(raw.deathDate)) p.deathDate = raw.deathDate;
     if (typeof raw.notes === 'string') p.notes = raw.notes;
     if (typeof raw.photo === 'string') p.photo = dataUrlToBlob(raw.photo);
     people.push(p);
@@ -62,7 +65,7 @@ export function parseTree(json: string): { people: Person[]; relationships: Rela
   for (const r of d.relationships as Record<string, unknown>[]) {
     if (!r || !isStr(r.id) || relIds.has(r.id)) continue;
     if (r.type === 'partner' && isStr(r.a) && isStr(r.b) && ids.has(r.a) && ids.has(r.b) && r.a !== r.b)
-      relationships.push({ id: r.id, type: 'partner', a: r.a, b: r.b });
+      relationships.push({ id: r.id, type: 'partner', a: r.a, b: r.b, ...(isValidDate(r.weddingDate) ? { weddingDate: r.weddingDate } : {}) });
     else if (r.type === 'parent' && isStr(r.parent) && isStr(r.child) && ids.has(r.parent) && ids.has(r.child) && r.parent !== r.child)
       relationships.push({ id: r.id, type: 'parent', parent: r.parent, child: r.child });
     else continue;

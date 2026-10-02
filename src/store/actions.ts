@@ -11,7 +11,17 @@ import { useFamily } from './family';
 import { live } from './live';
 import { useUI, type AddFlow } from './ui';
 
-export type PersonDraft = { name: string; photo?: Blob; gender?: Gender; birthYear?: number; notes?: string };
+export type PersonDraft = {
+  name: string;
+  photo?: Blob;
+  gender?: Gender;
+  birthYear?: number;
+  birthDate?: string;
+  deathDate?: string;
+  notes?: string;
+  /** Only used when adding a partner; stored on the partner link, not the person. */
+  weddingDate?: string;
+};
 
 export const FADE_MS = 400;
 
@@ -167,8 +177,9 @@ export async function saveAdd(draft: PersonDraft) {
   const flow = currentFlow();
   if (!flow?.relation) return;
   try {
-    const person: Person = { id: flow.newId, ...draft };
-    const plan = planAddition(family().index, flow.anchorId, flow.relation, person, flow);
+    const { weddingDate, ...fields } = draft;
+    const person: Person = { id: flow.newId, ...fields };
+    const plan = planAddition(family().index, flow.anchorId, flow.relation, person, { ...flow, weddingDate });
     await family().add(plan.people, plan.relationships);
     ui().setMode({ kind: 'idle' });
     ui().select(person.id);
@@ -217,13 +228,25 @@ export function confirmUnlink(relId: string, message: string) {
   });
 }
 
+export async function setWeddingDate(relId: string, date: string | undefined) {
+  const rel = family().relationships.find((r) => r.id === relId);
+  if (!rel || rel.type !== 'partner') return;
+  try {
+    const { weddingDate: _old, ...rest } = rel;
+    await family().updateRelationship(date ? { ...rest, weddingDate: date } : rest);
+  } catch (e) {
+    report(e);
+  }
+}
+
 // ---------- edit / delete ----------
 
 export async function savePerson(id: string, draft: PersonDraft) {
   const existing = family().byId.get(id);
   if (!existing) return;
   try {
-    await family().update({ id, ...draft });
+    const { weddingDate: _ignored, ...fields } = draft;
+    await family().update({ id, ...fields });
   } catch (e) {
     report(e);
   }
@@ -321,6 +344,7 @@ export async function exportFile() {
 export async function initialLoad() {
   try {
     await family().load();
+    void import('./calendar').then((m) => m.useCalendar.getState().init());
     const { people, relationships } = family();
     frameTree(people, relationships);
   } catch (e) {

@@ -1,4 +1,5 @@
 import { useId, useRef, useState, type DragEvent, type FormEvent } from 'react';
+import { isValidDate } from '../../lib/dates';
 import { resizePhoto } from '../../lib/photo';
 import type { Gender } from '../../lib/types';
 import type { PersonDraft } from '../../store/actions';
@@ -9,6 +10,8 @@ type Props = {
   initial?: PersonDraft;
   submitLabel?: string;
   showNotes?: boolean;
+  /** Ask for a wedding date (when adding a partner). */
+  showWedding?: boolean;
   onSubmit: (draft: PersonDraft) => Promise<void> | void;
   onCancel: () => void;
 };
@@ -79,19 +82,26 @@ function PhotoInput({ value, onChange, busy, onBusy }: PhotoProps) {
   );
 }
 
-export function PersonForm({ title, initial, submitLabel = 'Save', showNotes, onSubmit, onCancel }: Props) {
+const today = () => new Date().toISOString().slice(0, 10);
+
+export function PersonForm({ title, initial, submitLabel = 'Save', showNotes, showWedding, onSubmit, onCancel }: Props) {
   const id = useId();
   const [name, setName] = useState(initial?.name ?? '');
   const [photo, setPhoto] = useState(initial?.photo);
   const [birthYear, setBirthYear] = useState(initial?.birthYear?.toString() ?? '');
+  const [birthDate, setBirthDate] = useState(initial?.birthDate ?? '');
+  const [deathDate, setDeathDate] = useState(initial?.deathDate ?? '');
+  const [weddingDate, setWeddingDate] = useState(initial?.weddingDate ?? '');
   const [gender, setGender] = useState<Gender | ''>(initial?.gender ?? '');
   const [notes, setNotes] = useState(initial?.notes ?? '');
   const [saving, setSaving] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
 
-  const year = birthYear.trim() ? Number(birthYear) : undefined;
+  // A full birthday wins over a bare year.
+  const year = isValidDate(birthDate) ? Number(birthDate.slice(0, 4)) : birthYear.trim() ? Number(birthYear) : undefined;
+  const deathBeforeBirth = isValidDate(birthDate) && isValidDate(deathDate) && deathDate < birthDate;
   const yearInvalid = year !== undefined && (!Number.isInteger(year) || year < 1 || year > 3000);
-  const valid = name.trim().length > 0 && !yearInvalid && !photoBusy;
+  const valid = name.trim().length > 0 && !yearInvalid && !deathBeforeBirth && !photoBusy;
 
   const submit = async (e: FormEvent) => {
     e.preventDefault();
@@ -102,6 +112,9 @@ export function PersonForm({ title, initial, submitLabel = 'Save', showNotes, on
         name: name.trim(),
         photo,
         birthYear: year,
+        birthDate: isValidDate(birthDate) ? birthDate : undefined,
+        deathDate: isValidDate(deathDate) ? deathDate : undefined,
+        weddingDate: showWedding && isValidDate(weddingDate) ? weddingDate : undefined,
         gender: gender || undefined,
         notes: notes.trim() || undefined,
       });
@@ -118,9 +131,28 @@ export function PersonForm({ title, initial, submitLabel = 'Save', showNotes, on
       <input id={`${id}-name`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Full name" autoFocus maxLength={80} />
       <div className="row">
         <div>
-          <label htmlFor={`${id}-year`}>Birth year</label>
-          <input id={`${id}-year`} inputMode="numeric" value={birthYear} onChange={(e) => setBirthYear(e.target.value)} placeholder="Optional" aria-invalid={yearInvalid} />
+          <label htmlFor={`${id}-birth`}>Birthday</label>
+          <input id={`${id}-birth`} type="date" value={birthDate} max={today()} onChange={(e) => setBirthDate(e.target.value)} />
         </div>
+        <div>
+          <label htmlFor={`${id}-death`}>Died</label>
+          <input id={`${id}-death`} type="date" value={deathDate} max={today()} onChange={(e) => setDeathDate(e.target.value)} aria-invalid={deathBeforeBirth} />
+        </div>
+      </div>
+      {deathBeforeBirth && <p className="field-error">Date of death is before the birthday.</p>}
+      {showWedding && (
+        <>
+          <label htmlFor={`${id}-wedding`}>Wedding date</label>
+          <input id={`${id}-wedding`} type="date" value={weddingDate} max={today()} onChange={(e) => setWeddingDate(e.target.value)} />
+        </>
+      )}
+      <div className="row">
+        {!isValidDate(birthDate) && (
+          <div>
+            <label htmlFor={`${id}-year`}>Birth year</label>
+            <input id={`${id}-year`} inputMode="numeric" value={birthYear} onChange={(e) => setBirthYear(e.target.value)} placeholder="If no exact date" aria-invalid={yearInvalid} />
+          </div>
+        )}
         <div>
           <label htmlFor={`${id}-gender`}>Gender</label>
           <select id={`${id}-gender`} value={gender} onChange={(e) => setGender(e.target.value as Gender | '')}>
