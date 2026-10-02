@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { exportFile, flyToPerson, frameAll, importFile, loadDemo, startConnection, clearConnection } from '../../store/actions';
+import { clearConnection, clearTree, exportFile, flyToPerson, frameAll, importFile, loadDemo, startConnection } from '../../store/actions';
 import { useFamily } from '../../store/family';
 import { useUI } from '../../store/ui';
 import { PersonPicker } from './PersonPicker';
@@ -34,6 +34,9 @@ export function TopBar() {
         </button>
         <button className="btn ghost" disabled={busy} onClick={() => fileInput.current?.click()}>
           Import
+        </button>
+        <button className="btn danger" disabled={busy || count === 0} onClick={clearTree}>
+          Clear tree
         </button>
         <input
           ref={fileInput}

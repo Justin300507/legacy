@@ -266,6 +266,25 @@ function replaceWith(people: Person[], relationships: Relationship[], message: s
   else ui().setDialog({ message, confirmLabel: 'Replace', danger: true, onConfirm: run });
 }
 
+export function clearTree() {
+  const n = family().people.length;
+  ui().setDialog({
+    message: `Delete all ${n} ${n === 1 ? 'person' : 'people'} and start an empty tree? Export first if you want a backup.`,
+    confirmLabel: 'Delete everything',
+    danger: true,
+    onConfirm: async () => {
+      try {
+        await family().replaceAll([], []);
+        ui().setMode({ kind: 'idle' });
+        ui().select(null);
+        ui().moveCamera(frame([], { front: true }));
+      } catch (e) {
+        report(e);
+      }
+    },
+  });
+}
+
 export function loadDemo() {
   const demo = demoFamily();
   replaceWith(demo.people, demo.relationships, 'Replace your current tree with the demo family?');
