@@ -1,4 +1,6 @@
+/* Status bar / notch inset in the Android app (Capacitor provides --safe-area-inset-*; browsers env()). */
 :root {
+  --safe-top: max(env(safe-area-inset-top, 0px), var(--safe-area-inset-top, 0px));
   --bg: #000000;
   --panel: #0a0a0a;
   --accent: #2f80ff;
@@ -91,7 +93,7 @@ textarea { resize: vertical; }
   justify-content: space-between;
   align-items: flex-start;
   gap: 12px;
-  padding: 14px 16px;
+  padding: calc(14px + var(--safe-top)) 16px 14px;
   pointer-events: none;
 }
 .top-bar > * { pointer-events: auto; }
@@ -331,7 +333,7 @@ textarea { resize: vertical; }
 
 /* ---------- phone ---------- */
 @media (max-width: 640px) {
-  .top-bar { flex-direction: column; align-items: stretch; padding: 10px 12px; gap: 8px; }
+  .top-bar { flex-direction: column; align-items: stretch; padding: calc(10px + var(--safe-top)) 12px 10px; gap: 8px; }
   .brand-search { justify-content: space-between; }
   .search { width: auto; flex: 1; }
   .toolbar { justify-content: flex-start; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; padding-bottom: 2px; }
@@ -346,7 +348,7 @@ textarea { resize: vertical; }
     border-radius: 18px 18px 0 0;
     padding-bottom: calc(18px + env(safe-area-inset-bottom));
   }
-  .connect-bar { top: 112px; }
+  .connect-bar { top: calc(112px + var(--safe-top)); }
   .connect-pickers { flex-wrap: wrap; }
   .connect-pickers .picker { flex: 1 1 40%; }
   .connect-pickers .arrow { display: none; }

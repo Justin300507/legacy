@@ -303,14 +303,18 @@ export async function exportFile() {
   try {
     const { people, relationships } = family();
     const json = await exportTree(people, relationships);
+    const filename = `family-tree-${new Date().toISOString().slice(0, 10)}.json`;
+    const native = await import('../native');
+    if (native.isNative()) return await native.saveFileNative(filename, json);
     const url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
     const a = document.createElement('a');
     a.href = url;
-    a.download = `family-tree-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = filename;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (e) {
-    report(e);
+    // Closing the share sheet without picking a target isn't an error.
+    if (!/cancel/i.test(errorText(e))) report(e);
   }
 }
 

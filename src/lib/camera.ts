@@ -7,6 +7,9 @@ export const cam = { position: new Vector3(0, 4, 26), target: new Vector3(), fov
 /** An orbit may carry an explicit `sweep` (radians of azimuth turned); otherwise the shortest way round. */
 export type CameraMove = { kind: 'fly' | 'orbit'; position: Vec3; target: Vec3; duration: number; sweep?: number };
 
+// The canvas fills the window; read it live so moves planned before the first resize (initial load on a phone) fit too.
+const aspect = () => (typeof window !== 'undefined' && window.innerHeight ? window.innerWidth / window.innerHeight : cam.aspect);
+
 const toVec3 = (v: Vector3): Vec3 => [v.x, v.y, v.z];
 
 const viewDir = () => {
@@ -23,7 +26,7 @@ export function flyToPoint(p: Vector3, distance = 18, at: { x: number; y: number
   const tanV = Math.tan(((cam.fov / 2) * Math.PI) / 180);
   const target = p
     .clone()
-    .addScaledVector(right, -at.x * tanV * cam.aspect * distance)
+    .addScaledVector(right, -at.x * tanV * aspect() * distance)
     .addScaledVector(up, -at.y * tanV * distance);
   return { kind: 'fly', target: toVec3(target), position: toVec3(target.clone().addScaledVector(dir, distance)), duration: 1100 };
 }
@@ -42,7 +45,7 @@ export function frame(points: Vector3[], opts: { front?: boolean; duration?: num
   const radius = (Math.max(...points.map((p) => p.distanceTo(center))) + 2.8) * (1 + lift);
   center.y -= radius * lift;
   const vHalf = ((cam.fov / 2) * Math.PI) / 180;
-  const hHalf = Math.atan(Math.tan(vHalf) * cam.aspect);
+  const hHalf = Math.atan(Math.tan(vHalf) * aspect());
   const distance = Math.max(8, radius / Math.sin(Math.min(vHalf, hHalf)));
   const dir = opts.front ? new Vector3(0, 0.18, 1).normalize() : viewDir();
   return { kind: 'fly', target: toVec3(center), position: toVec3(center.clone().addScaledVector(dir, distance)), duration: opts.duration ?? 1200 };
@@ -58,7 +61,7 @@ const wrap = (a: number) => Math.atan2(Math.sin(a), Math.cos(a));
 export function orbitToShow(anchor: Vector3, spot: Vector3, opts: { bottomSheet?: boolean } = {}): CameraMove & { sweep: number } {
   const target = anchor.clone().add(spot).multiplyScalar(0.5);
   const vHalf = ((cam.fov / 2) * Math.PI) / 180;
-  const hHalf = Math.atan(Math.tan(vHalf) * cam.aspect);
+  const hHalf = Math.atan(Math.tan(vHalf) * aspect());
   const sep = spot.clone().sub(anchor);
   const d = viewDir();
   const curAz = Math.atan2(d.x, d.z);
