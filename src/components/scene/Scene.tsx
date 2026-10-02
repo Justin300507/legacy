@@ -9,6 +9,7 @@ import { live, motion } from '../../store/live';
 import { isGhostStage, useConnectionPath, useLayoutTargets } from '../../store/selectors';
 import { useUI } from '../../store/ui';
 import { CameraRig } from './CameraRig';
+import { SceneErrorBoundary } from './SceneErrorBoundary';
 import { Connections, edgeKey } from './Connections';
 import { AddGhost, GhostRing } from './Ghost';
 import { Dust } from './Dust';
@@ -92,6 +93,7 @@ function SceneContent({ ghostForm }: { ghostForm: ReactNode | null }) {
 
 export function Scene({ ghostForm }: { ghostForm: ReactNode | null }) {
   return (
+    <SceneErrorBoundary>
     <Canvas
       flat
       dpr={[1, 2]}
@@ -99,6 +101,9 @@ export function Scene({ ghostForm }: { ghostForm: ReactNode | null }) {
       onPointerMissed={clickBackground}
       gl={{ powerPreference: 'high-performance' }}
       onCreated={(state) => {
+        // Surface GPU shader failures instead of silently rendering nothing.
+        state.gl.debug.onShaderError = (gl, program) =>
+          useUI.getState().showToast(`Graphics error: ${gl.getProgramInfoLog(program) || 'a shader failed to compile'}`);
         if (import.meta.env.DEV) (window as unknown as { __r3f: unknown }).__r3f = state;
       }}
     >
@@ -110,5 +115,6 @@ export function Scene({ ghostForm }: { ghostForm: ReactNode | null }) {
         <Bloom mipmapBlur luminanceThreshold={BLOOM_THRESHOLD} luminanceSmoothing={0.3} intensity={1.6} radius={0.8} />
       </EffectComposer>
     </Canvas>
+    </SceneErrorBoundary>
   );
 }

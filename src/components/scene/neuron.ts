@@ -161,9 +161,10 @@ const somaFragment = /* glsl */ `
   varying vec3 vV;
   varying float vNoise;
   void main() {
-    float rim = pow(1.0 - abs(dot(vN, vV)), 2.2);
+    // clamp: GLSL pow() of a negative base is NaN on real GPUs, and bloom smears NaN over the whole frame.
+    float rim = pow(clamp(1.0 - abs(dot(vN, vV)), 0.0, 1.0), 2.2);
     vec3 c = uColor * (0.12 + rim * 2.4 + vNoise * 0.2) * uIntensity;
-    gl_FragColor = vec4(c, (0.2 + rim) * uOpacity);
+    gl_FragColor = vec4(max(c, 0.0), (0.2 + rim) * uOpacity);
   }
 `;
 
@@ -202,13 +203,14 @@ const dendriteFragment = /* glsl */ `
   varying vec3 vN;
   varying vec3 vV;
   void main() {
-    float rim = pow(1.0 - abs(dot(vN, vV)), 1.4);
+    float rim = pow(clamp(1.0 - abs(dot(vN, vV)), 0.0, 1.0), 1.4);
     // Electrical impulse running out from the soma; idle part of the cycle keeps it intermittent.
     float head = fract(uTime * 0.32 + vSeed * 3.7 + uSeed) * 1.8;
-    float spark = exp(-pow((vT - head) * 9.0, 2.0)) * uFire;
+    float dx = (vT - head) * 9.0;
+    float spark = exp(-dx * dx) * uFire;
     float fade = 1.0 - vT * 0.65;
     vec3 c = uColor * ((0.35 + rim * 1.3) * fade * uIntensity + spark * 4.5);
-    gl_FragColor = vec4(c, (0.45 + rim * 0.55) * fade * uOpacity);
+    gl_FragColor = vec4(max(c, 0.0), (0.45 + rim * 0.55) * fade * uOpacity);
   }
 `;
 
